@@ -30,4 +30,4 @@ def segmet_audio_part(audio_path, destination_folder_path, name, start_time, end
 
     fragment = audio[start_time * 1000 : end_time * 1000]
 
-    fragment.export(destination_folder_path + "\\" + audio_path[:-4].replace("\\","+") + "-" + str(start_time) + "-" + str(end_time) + "-" + name + ".wav", format="wav")
+    fragment.export(destination_folder_path + "/" + audio_path[:-4].replace("/","+") + "-" + str(start_time) + "-" + str(end_time) + "-" + name + ".wav", format="wav")

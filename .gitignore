@@ -1,3 +1,7 @@
 *.wav
 *.csv
 *.txt
+!requirements.txt
+venv
+BirdNET-Analyzer/birdnet_analyzer/checkpoints/
+__pycache__/
