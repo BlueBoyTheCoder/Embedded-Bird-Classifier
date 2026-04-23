@@ -1,6 +1,7 @@
 *.wav
 *.csv
 *.txt
+*.json
 !requirements.txt
 venv
 BirdNET-Analyzer/birdnet_analyzer/checkpoints/
