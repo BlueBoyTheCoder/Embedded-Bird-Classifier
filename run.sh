@@ -1,22 +1,35 @@
 #!/bin/bash
 
-export PYTHONPATH=$PYTHONPATH:$(pwd)/BirdNET-Analyzer
-
-INPUT_DIR="audio_example_samples/"
-OUTPUT_DIR="running/log_files"
-LOG_FILE="$OUTPUT_DIR/logs.txt"
-ERROR_FILE="$OUTPUT_DIR/output_error.txt"
-
-mkdir -p "$OUTPUT_DIR"
-
-echo "Uruchamianie analizy BirdNET z poziomu: $(pwd)"
-
-python3 -u -m birdnet_analyzer.analyze "$INPUT_DIR" -o "$OUTPUT_DIR/" \
-    1> "$LOG_FILE" \
-    2> "$ERROR_FILE"
-
-echo "Gotowe! Logi znajdziesz w $OUTPUT_DIR"
+./setup.sh
 
 source venv/bin/activate
 
-python3 -m src.program.main
+ANALYZER="src/analyzer.py"
+RECORDER="src/recorder.py"
+RECORDER_ARGS="-m default"
+
+echo "Running: $ANALYZER, $RECORDER $RECORDER_ARGS..."
+
+python "$ANALYZER" > /dev/null 2>&1 &
+PID1=$!
+
+python "$RECORDER" $RECORDER_ARGS > /dev/null 2>&1 &
+PID2=$!
+
+echo "Press [CTRL+C] to stop the programs"
+
+function finish {
+    echo -e "\nClosing programs..."
+    
+    kill $PID1 $PID2 2>/dev/null
+    wait $PID1 $PID2 2>/dev/null
+
+    echo "Programs closed"
+    exit 0
+}
+
+trap finish SIGINT
+
+while true; do
+    sleep 1
+done

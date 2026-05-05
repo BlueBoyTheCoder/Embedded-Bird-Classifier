@@ -6,3 +6,4 @@
 venv
 BirdNET-Analyzer/birdnet_analyzer/checkpoints/
 __pycache__/
+previous_version/
