@@ -25,61 +25,69 @@ if not os.path.exists(file_path):
         json.dump([], file)
 
 
-
 class BirdWatchHandler(FileSystemEventHandler):
     def on_created(self, event):
+        # Ignoruj foldery
+        if event.is_directory:
+            return
+        
+        # Obsługuj tylko pliki .wav
+        if not event.src_path.lower().endswith(".wav"):
+            return
+
         now = datetime.now()
         logname = now.strftime("%Y-%m-%d_%H-%M-%S-%f")
+        
+        print(f"Analyzing: {event.src_path}")
 
-        if not event.is_directory and event.src_path.endswith((".wav")):
-            print(f"Analyzing: {event.src_path}")
-
+        try:
+            # 1. Analiza
             recording = Recording(analyzer, event.src_path, lat=52.2, lon=21.0)
             recording.analyze()
 
-            record_data = {
-                "timestamp": logname,
-                "detections": recording.detections
-            }
+            if recording.detections:
+                record_data = {
+                    "timestamp": logname,
+                    "detections": recording.detections
+                }
 
-
-
-            # Odczyt i aktualizacja pliku JSON
-            try:
-                with open(file_path, "r+", encoding="utf-8") as file:
-                    # Przejdź na koniec pliku, aby cofnąć zamykający nawias ]
-                    file.seek(0, os.SEEK_END)
-                    pos = file.tell()
-
-                    # Szukamy ostatniego znaku ']' cofając się od końca
-                    while pos > 0:
-                        pos -= 1
+                # 2. Zapis do JSON
+                try:
+                    with open(file_path, "r+", encoding="utf-8") as file:
+                        file.seek(0, os.SEEK_END)
+                        pos = file.tell()
+                        while pos > 0:
+                            pos -= 1
+                            file.seek(pos)
+                            if file.read(1) == "]":
+                                break
                         file.seek(pos)
-                        char = file.read(1)
-                        if char == "]":
-                            break
+                        file.truncate()
+                        if pos > 2:
+                            file.write(",\n")
+                        else:
+                            file.write("\n")
+                        json.dump(record_data, file, indent=4, ensure_ascii=False)
+                        file.write("\n]")
+                except Exception as e:
+                    print(f"Błąd zapisu JSON: {e}")
 
-                    # Obcinamy plik tak, aby usunąć znak ']'
-                    file.seek(pos)
-                    file.truncate()
+                # 3. Wycinanie fragmentów audio
+                segment_audio_parts(recording.detections, event.src_path, OUTPUT_WAV_DIR, logname)
+            
+            # --- KLUCZOWY MOMENT ---
+            # Usuwamy referencję do obiektu recording, aby zwolnić plik
+            del recording 
+            
+            # Krótka pauza, aby system zwolnił uchwyt do pliku (ważne zwłaszcza na Windows)
+            time.sleep(0.1) 
 
-                    # Jeśli plik nie jest pusty (zawiera już jakieś obiekty), dodajemy przecinek
-                    if pos > 2:  # 2 bajty to `[]`
-                        file.write(",\n")
-                    else:
-                        file.write("\n")
+            if os.path.exists(event.src_path):
+                os.remove(event.src_path)
+                print(f"Successfully removed: {event.src_path}")
 
-                    # Zapisujemy nowy obiekt i zamykamy tablicę
-                    json.dump(record_data, file, indent=4, ensure_ascii=False)
-                    file.write("\n]")
-
-            except Exception as e:
-                print(f"Błąd podczas dopisywania do JSON: {e}")
-            print(recording.detections)
-            segment_audio_parts(recording.detections, event.src_path, OUTPUT_WAV_DIR, logname)
-
-            os.remove(event.src_path)
-            print(f"Got results for: {event.src_path}")
+        except Exception as e:
+            print(f"Błąd podczas przetwarzania pliku {event.src_path}: {e}")
 
 
 if __name__ == "__main__":

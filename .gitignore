@@ -2,8 +2,13 @@
 *.csv
 *.txt
 *.json
+*.log
 !requirements.txt
 venv
 BirdNET-Analyzer/birdnet_analyzer/checkpoints/
 __pycache__/
 previous_version/
+frontend/node_modules/
+
+!frontend/package-lock.json
+!frontend/package.json

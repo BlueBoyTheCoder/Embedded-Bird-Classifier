@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Stylizacja odtwarzacza audio dla Dark Mode */
+.custom-audio::-webkit-media-controls-panel {
+  background-color: #0f172a;
+}
+.custom-audio::-webkit-media-controls-current-time-display,
+.custom-audio::-webkit-media-controls-time-remaining-display {
+  color: #10b981;
+}
