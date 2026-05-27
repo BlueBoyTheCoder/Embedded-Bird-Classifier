@@ -17,13 +17,9 @@ now = datetime.now()
 OUTPUT_WAV_DIR = f"./running/saved_audio_samples/{now.strftime('%Y-%m-%d_%H-%M-%S')}"
 os.makedirs(OUTPUT_WAV_DIR, exist_ok=True)
 
+# Definiujemy ścieżkę, ale NIE tworzymy pustego pliku!
 file_name = f"analysis_{now.strftime('%Y-%m-%d_%H-%M-%S')}.json"
 file_path = os.path.join(OUTPUT_DIR, file_name)
-
-if not os.path.exists(file_path):
-    with open(file_path, "w", encoding="utf-8") as file:
-        json.dump([], file)
-
 
 class BirdWatchHandler(FileSystemEventHandler):
     def on_created(self, event):
@@ -45,13 +41,19 @@ class BirdWatchHandler(FileSystemEventHandler):
             recording = Recording(analyzer, event.src_path, lat=52.2, lon=21.0)
             recording.analyze()
 
+            # 2. Rejestrujemy TYLKO, gdy wykryto jakiegoś ptaka
             if recording.detections:
                 record_data = {
                     "timestamp": logname,
                     "detections": recording.detections
                 }
 
-                # 2. Zapis do JSON
+                # Inicjalizacja pliku JSON przy PIERWSZYM wykrytym ptaku
+                if not os.path.exists(file_path):
+                    with open(file_path, "w", encoding="utf-8") as file:
+                        file.write("[\n]")
+                
+                # Zapis do JSON
                 try:
                     with open(file_path, "r+", encoding="utf-8") as file:
                         file.seek(0, os.SEEK_END)
@@ -72,23 +74,22 @@ class BirdWatchHandler(FileSystemEventHandler):
                 except Exception as e:
                     print(f"Błąd zapisu JSON: {e}")
 
-                # 3. Wycinanie fragmentów audio
+                # Wycinanie fragmentów audio (uruchamiane tylko, gdy są detekcje)
                 segment_audio_parts(recording.detections, event.src_path, OUTPUT_WAV_DIR, logname)
             
-            # --- KLUCZOWY MOMENT ---
             # Usuwamy referencję do obiektu recording, aby zwolnić plik
             del recording 
             
-            # Krótka pauza, aby system zwolnił uchwyt do pliku (ważne zwłaszcza na Windows)
+            # Krótka pauza, aby system zwolnił uchwyt do pliku
             time.sleep(0.1) 
 
+            # 3. Zawsze usuwamy plik wejściowy, żeby oszczędzić miejsce na Raspberry Pi
             if os.path.exists(event.src_path):
                 os.remove(event.src_path)
                 print(f"Successfully removed: {event.src_path}")
 
         except Exception as e:
             print(f"Błąd podczas przetwarzania pliku {event.src_path}: {e}")
-
 
 if __name__ == "__main__":
     event_handler = BirdWatchHandler()
