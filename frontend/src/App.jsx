@@ -82,9 +82,11 @@ const App = () => {
   const generateChartData = (data) => {
     const counts = {};
     data.forEach(entry => {
-      entry.detections.forEach(det => {
-        counts[det.common_name] = (counts[det.common_name] || 0) + 1;
-      });
+      if(entry.detections) {
+        entry.detections.forEach(det => {
+          counts[det.common_name] = (counts[det.common_name] || 0) + 1;
+        });
+      }
     });
     const formattedData = Object.keys(counts).map(name => ({ name, count: counts[name] })).sort((a, b) => b.count - a.count);
     setChartData(formattedData);
@@ -92,7 +94,7 @@ const App = () => {
 
   const getAudioUrl = (timestamp, detection, fileName) => {
     const folderName = fileName.replace('analysis_', '').replace('.json', '');
-    const wavName = `${timestamp}_${detection.start_time.toFixed(1)}_${detection.end_time.toFixed(1)}.wav`;
+    const wavName = `audio_${timestamp}_${detection.start_time.toFixed(1)}_${detection.end_time.toFixed(1)}.wav`;
     return `${API_BASE}/data/audio/${folderName}/${wavName}`;
   };
 
@@ -190,7 +192,8 @@ const App = () => {
                   <h3 className="text-lg font-bold text-emerald-400 mb-6 flex items-center gap-2">
                     <Activity size={20}/> Zestawienie gatunków
                   </h3>
-                  <div className="flex-1 min-h-[350px] w-full">
+                  {/* KLUCZOWA ZMIANA WYSOKOŚCI */}
+                  <div className="w-full h-[400px]">
                     {chartData.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 40 }}>
@@ -215,43 +218,49 @@ const App = () => {
                 </div>
 
                 {/* Lista chronologiczna (Auto-odświeżana) */}
-                <div className="xl:col-span-1 flex flex-col gap-6 h-[700px] overflow-y-auto pr-2 custom-scrollbar">
+                {/* NAPRAWIONY CSS: usunięto sztywne h-[700px], dodano min-h-0 */}
+                <div className="xl:col-span-1 flex flex-col gap-6 min-h-0 overflow-y-auto pr-2 custom-scrollbar">
                   {[...(reportData || [])].reverse().map((entry, idx) => (
-                    <div key={idx} className="bg-slate-900/80 rounded-2xl p-5 border border-slate-800 relative overflow-hidden group">
-                      
-                      <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/5 rounded-bl-full -z-10"></div>
-                      <div className="text-emerald-400 font-mono text-xs mb-4 pb-2 border-b border-slate-800">
-                        {entry.timestamp.replace(/_/g, ' ')}
-                      </div>
+                    entry.detections && (
+                      <div key={idx} className="bg-slate-900/80 rounded-2xl p-5 border border-slate-800 relative overflow-hidden group shrink-0">
+                        
+                        <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/5 rounded-bl-full -z-10"></div>
+                        <div className="text-emerald-400 font-mono text-xs mb-4 pb-2 border-b border-slate-800">
+                          {entry.timestamp ? entry.timestamp.replace(/_/g, ' ') : "Brak daty"}
+                        </div>
 
-                      <div className="grid gap-4">
-                        {entry.detections.map((det, dIdx) => (
-                          <div key={dIdx} className="flex flex-col gap-3">
-                            <div className="flex gap-4 items-center">
-                              <div className="w-16 h-16 rounded-lg bg-slate-800 flex-shrink-0 overflow-hidden border border-slate-700">
-                                <img 
-                                  src={getImageUrl(det.common_name)} 
-                                  alt={det.common_name}
-                                  className="w-full h-full object-cover opacity-90"
-                                  onError={(e) => { e.target.style.display = 'none'; }} 
-                                />
+                        <div className="grid gap-4">
+                          {entry.detections.map((det, dIdx) => (
+                            <div key={dIdx} className="flex flex-col gap-3">
+                              <div className="flex gap-4 items-center">
+                                <div className="w-16 h-16 rounded-lg bg-slate-800 flex-shrink-0 overflow-hidden border border-slate-700 relative flex items-center justify-center">
+                                  <Bird className="absolute text-slate-600 z-0" size={24} />
+                                  <img 
+                                    src={getImageUrl(det.common_name)} 
+                                    alt={det.common_name}
+                                    loading="lazy"
+                                    className="w-full h-full object-cover relative z-10 transition-opacity duration-300"
+                                    onError={(e) => { e.target.style.opacity = '0'; }} 
+                                  />
+                                </div>
+                                <div>
+                                  <h4 className="text-md font-bold text-white leading-tight mb-1">{det.common_name}</h4>
+                                  <span className="px-2 py-0.5 rounded bg-slate-950 text-emerald-400 text-[10px] font-bold border border-emerald-500/20 uppercase">
+                                    {(det.confidence * 100).toFixed(0)}%
+                                  </span>
+                                </div>
                               </div>
-                              <div>
-                                <h4 className="text-md font-bold text-white leading-tight mb-1">{det.common_name}</h4>
-                                <span className="px-2 py-0.5 rounded bg-slate-950 text-emerald-400 text-[10px] font-bold border border-emerald-500/20 uppercase">
-                                  {(det.confidence * 100).toFixed(0)}%
-                                </span>
-                              </div>
+                              <audio 
+                                controls 
+                                preload="none"
+                                src={getAudioUrl(entry.timestamp, det, selectedFile)}
+                                className="h-8 w-full custom-audio"
+                              />
                             </div>
-                            <audio 
-                              controls 
-                              src={getAudioUrl(entry.timestamp, det, selectedFile)}
-                              className="h-8 w-full custom-audio"
-                            />
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )
                   ))}
                 </div>
               </div>

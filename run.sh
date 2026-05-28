@@ -16,7 +16,7 @@ fuser -k 8000/tcp 5173/tcp 2>/dev/null
 echo "--- Launching Embedded Bird Classifier System ---"
 
 # 3. Uruchomienie Backendów Pythona
-python "$ANALYZER" > /dev/null 2>&1 &
+python3 "$ANALYZER" &
 PID1=$!
 echo "[OK] Analyzer started (PID: $PID1)"
 
