@@ -59,6 +59,17 @@ class BirdWatchHandler(FileSystemEventHandler):
                     f.truncate()
 
                 segment_audio_parts(recording.detections, event.src_path, SESSION_WAV_DIR, f"{os.path.basename(event.src_path)[:-4]}")
+
+            del recording 
+            
+            # Krótka pauza, aby system zwolnił uchwyt do pliku (ważne zwłaszcza na Windows)
+            time.sleep(0.1) 
+
+            if os.path.exists(event.src_path):
+                os.remove(event.src_path)
+                print(f"Successfully removed: {event.src_path}")
+            else:
+                print(f"File not found: {event.src_path}")
             
             print(f"Finished: {event.src_path} (Keep file)")
 
