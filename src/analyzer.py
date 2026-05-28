@@ -8,102 +8,72 @@ from watchdog.events import FileSystemEventHandler
 from birdnetlib import Recording
 from birdnetlib.analyzer import Analyzer
 
-OUTPUT_DIR = "./running/analizing_results"
-WATCH_PATH = "./running/new_audio_samples"
+# UŻYWAJ TYLKO PEŁNYCH ŚCIEŻEK
+BASE_DIR = "/home/user/bird_classifier"
+OUTPUT_DIR = os.path.join(BASE_DIR, "running/analizing_results")
+WATCH_PATH = os.path.join(BASE_DIR, "running/new_audio_samples")
+BASE_AUDIO_DIR = os.path.join(BASE_DIR, "running/saved_audio_samples")
 
 analyzer = Analyzer()
 now = datetime.now()
 
-OUTPUT_WAV_DIR = f"./running/saved_audio_samples/{now.strftime('%Y-%m-%d_%H-%M-%S')}"
-os.makedirs(OUTPUT_WAV_DIR, exist_ok=True)
+# Tworzymy folder na nagrania z tej sesji
+SESSION_WAV_DIR = os.path.join(BASE_AUDIO_DIR, now.strftime('%Y-%m-%d_%H-%M-%S'))
+os.makedirs(SESSION_WAV_DIR, exist_ok=True)
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Definiujemy ścieżkę, ale NIE tworzymy pustego pliku!
-file_name = f"analysis_{now.strftime('%Y-%m-%d_%H-%M-%S')}.json"
-file_path = os.path.join(OUTPUT_DIR, file_name)
+file_path = os.path.join(OUTPUT_DIR, f"analysis_{now.strftime('%Y-%m-%d_%H-%M-%S')}.json")
 
 class BirdWatchHandler(FileSystemEventHandler):
     def on_created(self, event):
-        # Ignoruj foldery
-        if event.is_directory:
-            return
-        
-        # Obsługuj tylko pliki .wav
-        if not event.src_path.lower().endswith(".wav"):
+        if event.is_directory or not event.src_path.lower().endswith(".wav"):
             return
 
-        now = datetime.now()
-        logname = now.strftime("%Y-%m-%d_%H-%M-%S-%f")
+        # Czekamy chwilę, żeby recorder zdążył zapisać plik do końca
+        time.sleep(1) 
         
         print(f"Analyzing: {event.src_path}")
-
         try:
-            # 1. Analiza
             recording = Recording(analyzer, event.src_path, lat=52.2, lon=21.0)
             recording.analyze()
 
-            # 2. Rejestrujemy TYLKO, gdy wykryto jakiegoś ptaka
             if recording.detections:
+                print(f"Detected: {len(recording.detections)} birds")
+                
+                # Tworzymy plik JSON TYLKO jeśli są wykrycia i jeszcze nie istnieje
+                if not os.path.exists(file_path):
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        json.dump([], f)
+
                 record_data = {
-                    "timestamp": logname,
+                    "timestamp": datetime.now().strftime("%H:%M:%S"),
+                    "file": os.path.basename(event.src_path),
                     "detections": recording.detections
                 }
 
-                # Inicjalizacja pliku JSON przy PIERWSZYM wykrytym ptaku
-                if not os.path.exists(file_path):
-                    with open(file_path, "w", encoding="utf-8") as file:
-                        file.write("[\n]")
-                
-                # Zapis do JSON
-                try:
-                    with open(file_path, "r+", encoding="utf-8") as file:
-                        file.seek(0, os.SEEK_END)
-                        pos = file.tell()
-                        while pos > 0:
-                            pos -= 1
-                            file.seek(pos)
-                            if file.read(1) == "]":
-                                break
-                        file.seek(pos)
-                        file.truncate()
-                        if pos > 2:
-                            file.write(",\n")
-                        else:
-                            file.write("\n")
-                        json.dump(record_data, file, indent=4, ensure_ascii=False)
-                        file.write("\n]")
-                except Exception as e:
-                    print(f"Błąd zapisu JSON: {e}")
+                with open(file_path, "r+", encoding="utf-8") as f:
+                    data = json.load(f)
+                    data.append(record_data)
+                    f.seek(0)
+                    json.dump(data, f, indent=4, ensure_ascii=False)
+                    f.truncate()
 
-                # Wycinanie fragmentów audio (uruchamiane tylko, gdy są detekcje)
-                segment_audio_parts(recording.detections, event.src_path, OUTPUT_WAV_DIR, logname)
+                segment_audio_parts(recording.detections, event.src_path, SESSION_WAV_DIR, "bird")
             
-            # Usuwamy referencję do obiektu recording, aby zwolnić plik
-            del recording 
-            
-            # Krótka pauza, aby system zwolnił uchwyt do pliku
-            time.sleep(0.1) 
-
-            # 3. Zawsze usuwamy plik wejściowy, żeby oszczędzić miejsce na Raspberry Pi
-            if os.path.exists(event.src_path):
-                os.remove(event.src_path)
-                print(f"Successfully removed: {event.src_path}")
+            print(f"Finished: {event.src_path} (Keep file)")
 
         except Exception as e:
-            print(f"Błąd podczas przetwarzania pliku {event.src_path}: {e}")
-
+            print(f"Błąd analizy: {e}")
+            
 if __name__ == "__main__":
     event_handler = BirdWatchHandler()
     observer = Observer()
     observer.schedule(event_handler, WATCH_PATH, recursive=False)
     observer.start()
-    
-    print(f"Watching directory: {WATCH_PATH}\nPress Ctrl+C to exit.")
-    
+    print(f"Watcher started on: {WATCH_PATH}")
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
         observer.stop()
-        print("\n\nUser exit.")
-    
     observer.join()

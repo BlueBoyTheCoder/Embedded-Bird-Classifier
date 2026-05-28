@@ -86,32 +86,18 @@ def record(device_id):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Audio Recording Script")
-    parser.add_argument(
-        "-m", 
-        "--microphone", 
-        type=str, 
-        default=None, 
-        help="Name or part of the microphone's name to use"
-    )
-    args = parser.parse_args()
-
-    device_id = None
-    device_name = None
-
-    if args.microphone:
-        device_id, device_name = find_device_id(args.microphone)
-
-    # If the provided name wasn't found or wasn't provided, launch interactive selection
+    # Automatyczne szukanie mikrofonu USB
+    device_id, device_name = find_device_id("USB")
+    
     if device_id is None:
-        device_id, device_name = select_device_interactive()
-        if device_id is None:
-            exit(1)
+        print("Nie znaleziono mikrofonu USB. Próbuję ID: 1")
+        device_id = 1
+        device_name = "Domyślny/Wymuszony"
 
-    print(f"\nUsing microphone: {device_name} (ID: {device_id})\nPress Ctrl+C to exit.")
+    print(f"\nUruchamiam nagrywanie na: {device_name} (ID: {device_id})")
 
     try:
         while True:
             record(device_id)
     except KeyboardInterrupt:
-        print("\n\nExiting program.")
+        print("\nZamykanie nagrywarki.")
