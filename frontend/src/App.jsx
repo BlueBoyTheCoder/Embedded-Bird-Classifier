@@ -94,7 +94,7 @@ const App = () => {
 
   const getAudioUrl = (timestamp, detection, fileName) => {
     const folderName = fileName.replace('analysis_', '').replace('.json', '');
-    const wavName = `${timestamp}_${detection.start_time.toFixed(1)}_${detection.end_time.toFixed(1)}.wav`;
+    const wavName = `audio_${timestamp}_${detection.start_time.toFixed(1)}_${detection.end_time.toFixed(1)}.wav`;
     return `${API_BASE}/data/audio/${folderName}/${wavName}`;
   };
 

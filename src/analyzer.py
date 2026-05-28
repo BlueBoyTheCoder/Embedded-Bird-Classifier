@@ -9,7 +9,7 @@ from birdnetlib import Recording
 from birdnetlib.analyzer import Analyzer
 
 # UŻYWAJ TYLKO PEŁNYCH ŚCIEŻEK
-BASE_DIR = "/home/user/bird_classifier"
+BASE_DIR = os.path.join(os.path.expanduser("~"), "Systemy_Wbudowane/Embedded-Bird-Classifier")
 OUTPUT_DIR = os.path.join(BASE_DIR, "running/analizing_results")
 WATCH_PATH = os.path.join(BASE_DIR, "running/new_audio_samples")
 BASE_AUDIO_DIR = os.path.join(BASE_DIR, "running/saved_audio_samples")
@@ -46,7 +46,7 @@ class BirdWatchHandler(FileSystemEventHandler):
                         json.dump([], f)
 
                 record_data = {
-                    "timestamp": datetime.now().strftime("%H:%M:%S"),
+                    "timestamp": os.path.basename(event.src_path)[6:-4],
                     "file": os.path.basename(event.src_path),
                     "detections": recording.detections
                 }
@@ -58,7 +58,7 @@ class BirdWatchHandler(FileSystemEventHandler):
                     json.dump(data, f, indent=4, ensure_ascii=False)
                     f.truncate()
 
-                segment_audio_parts(recording.detections, event.src_path, SESSION_WAV_DIR, "bird")
+                segment_audio_parts(recording.detections, event.src_path, SESSION_WAV_DIR, f"{os.path.basename(event.src_path)[:-4]}")
             
             print(f"Finished: {event.src_path} (Keep file)")
 
