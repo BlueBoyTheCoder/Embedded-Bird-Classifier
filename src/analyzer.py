@@ -7,6 +7,13 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from birdnetlib import Recording
 from birdnetlib.analyzer import Analyzer
+from dotenv import load_dotenv
+
+load_dotenv() 
+
+LAT = float(os.getenv("LATITUDE", "0.0"))
+LON = float(os.getenv("LONGITUDE", "0.0"))
+
 
 # UŻYWAJ TYLKO PEŁNYCH ŚCIEŻEK
 BASE_DIR = os.path.join(os.path.expanduser("~"), "Systemy_Wbudowane/Embedded-Bird-Classifier")
@@ -34,7 +41,7 @@ class BirdWatchHandler(FileSystemEventHandler):
         
         print(f"Analyzing: {event.src_path}")
         try:
-            recording = Recording(analyzer, event.src_path, lat=52.2, lon=21.0)
+            recording = Recording(analyzer, event.src_path, lat=LAT, lon=LON)
             recording.analyze()
 
             if recording.detections:
