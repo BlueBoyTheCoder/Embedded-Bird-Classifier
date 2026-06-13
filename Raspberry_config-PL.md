@@ -1,3 +1,7 @@
+<p align="center">🇬🇧 <b>English:</b> <a href="README.md">Documentation</a> • <a href="Raspberry_config.md">Configuration</a> │ 🇵🇱 <b>Polski:</b> <a href="README.pl.md">Dokumentacja</a> • <a href="Raspberry_config-PL.md">Konfiguracja</a></p>
+
+---
+
 # Dokumentacja Wdrożeniowa: Embedded Bird Classifier
 
 **Platforma:** Raspberry Pi 4  
@@ -9,107 +13,86 @@
 
 ## Faza 1: Przygotowanie Systemu Operacyjnego
 
-### 1.1. Aktualizacja i instalacja zależności systemowych
-
-Na początek należy zaktualizować system oraz zainstalować wymagane sterowniki audio, narzędzia do konwersji, serwer plików oraz narzędzie do naprawy formatowania plików tekstowych:
+Wykonaj poniższe komendy w terminalu Raspberry Pi w celu instalacji pakietów binarnych, czyszczenia uprawnień i ujednolicenia formatów plików tekstowych:
 
 ```bash
+# 1.1. Aktualizacja i instalacja zależności systemowych
 sudo apt update && sudo apt upgrade -y
 sudo apt install libportaudio2 ffmpeg samba samba-common-bin dos2unix -y
-```
 
-### 1.2. Naprawa uprawnień i formatowania plików
-
-Pliki przeniesione z systemu Windows mogą posiadać niewidoczne znaki końca linii (CRLF), które uniemożliwiają ich uruchomienie w systemie Linux (błąd `status=2`). Należy naprawić kodowanie oraz nadać uprawnienia do wykonywania:
-
-```bash
-# Przejęcie własności nad plikami przez użytkownika 'user'
+# 1.2. Naprawa uprawnień i przywrócenie własności katalogu użytkownikowi 'user'
 sudo chown -R user:user /home/user/bird_classifier
 
-# Nadanie praw do wykonywania skryptów
+# 1.3. Nadanie praw do wykonywania skryptów startowych
 chmod +x /home/user/bird_classifier/run.sh
 chmod +x /home/user/bird_classifier/setup.sh
 
-# Konwersja formatowania na standard uniksowy
+# 1.4. Konwersja formatowania na standard uniksowy (usuwanie błędów CRLF ze środowiska Windows)
 sudo dos2unix /home/user/bird_classifier/run.sh
 sudo dos2unix /home/user/bird_classifier/setup.sh
 ```
 
 ---
 
-## Faza 2: Środowisko Python i Mikrofon
+## Faza 2: Środowisko Python i Konfiguracja Audio
 
-### 2.1. Konfiguracja wirtualnego środowiska (venv)
-
-Utworzenie izolowanego środowiska i instalacja bibliotek AI:
+Przygotuj niezależny kontener `venv` z bibliotekami i pobierz identyfikator sprzętowy swojej karty USB:
 
 ```bash
+# 2.1. Konfiguracja wirtualnego środowiska (venv)
 cd /home/user/bird_classifier
 python3 -m venv venv
 source venv/bin/activate
+
+# 2.2. Instalacja zależności Pythona z pliku wymagań
 pip install -r requirements.txt
-```
 
-### 2.2. Identyfikacja mikrofonu USB
-
-Aby skrypt nie oczekiwał na interakcję z klawiaturą, należy przypisać mikrofon na sztywno. Będąc w środowisku wirtualnym (`venv`), wykonaj:
-
-```bash
+# 2.3. Identyfikacja podłączonego mikrofonu USB
 python3 -c "import sounddevice as sd; print(sd.query_devices())"
 ```
 
-_Znajdź na liście swój mikrofon (np. "USB Audio Device") i zapamiętaj jego unikalny człon nazwy. Użyjemy go w kolejnym kroku._
+*Znajdź na wyświetlonej liście swój mikrofon (np. "USB Audio Device") i zanotuj jego nazwę lub numer indeksu.*
 
 ---
 
-## Faza 3: Skrypt Uruchomieniowy (`run.sh`)
+## Faza 3: Aktualizacja Konfiguracji Mikrofonu
 
-Zmodyfikuj główny plik `run.sh`, aby obsługiwał zidentyfikowany wcześniej mikrofon (zmień wartość `RECORDER_ARGS`).
-
-Otwórz edytor:
+Otwórz skrypt rozruchowy w edytorze tekstowym Nano:
 
 ```bash
 nano /home/user/bird_classifier/run.sh
 ```
 
-Zmodyfikuj wartość `RECORDER_ARGS` na `-m <identyfikator_mikrofonu>`.
+Zmień wartość zmiennej `RECORDER_ARGS` na identyfikator odczytany w poprzednim kroku:
 
+```bash
+RECORDER_ARGS="-m <twój_zidentyfikowany_mikrofon>"
+```
 
-_Zapisz plik: `Ctrl+O`, `Enter`, `Ctrl+X`._
+*Zapisz plik kombinacją klawiszy: `Ctrl+O`, zatwierdź `Enter`, wyjdź za pomocą `Ctrl+X`.*
 
 ---
 
-## Faza 4: Konfiguracja Usług i Sieci
+## Faza 4: Konfiguracja Usług Sieciowych i Energii
 
-### 4.1. Całkowita blokada usypiania (Zarządzanie energią)
-
-Zapobieganie wchodzeniu systemu i karty sieciowej w stan oszczędzania energii:
+Zabezpiecz system przed usypianiem interfejsów sieciowych oraz skonfiguruj Hotspot i Sambę.
 
 ```bash
+# 4.1. Całkowita blokada usypiania (Zarządzanie energią)
 sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
-```
 
-### 4.2. Utworzenie stałego Hotspotu Wi-Fi
-
-Raspberry będzie od teraz emitować własną sieć (niezbędną do komunikacji w terenie). Ustawienie flagi `autoconnect` gwarantuje start sieci przy każdym uruchomieniu zasilania.
-
-```bash
+# 4.2. Utworzenie stałego Hotspotu Wi-Fi
 sudo nmcli device wifi hotspot ifname wlan0 ssid DrzewoBirdNET password HasloDoDrzewa
 sudo nmcli connection modify Hotspot connection.autoconnect yes
 ```
 
 ### 4.3. Konfiguracja Serwera Samba (Dostęp dla Windows)
-
-Umożliwienie natywnego przeglądania plików poprzez Eksplorator Windows.
-
-Otwórz plik konfiguracyjny:
-
+Otwórz plik konfiguracyjny Samby:
 ```bash
 sudo nano /etc/samba/smb.conf
 ```
 
-Na samym dole pliku dodaj:
-
+Na samym dole pliku dopisz blok konfiguracji udostępniania katalogu:
 ```ini
 [Raspberry]
    path = /home/user
@@ -121,8 +104,7 @@ Na samym dole pliku dodaj:
    force user = user
 ```
 
-Zapisz plik, a następnie ustaw hasło (zalecane: to samo co do logowania) i zrestartuj usługę:
-
+Zapisz plik (`Ctrl+O`, `Enter`, `Ctrl+X`), a następnie ustaw hasło sieciowe dla użytkownika i zrestartuj usługę:
 ```bash
 sudo smbpasswd -a user
 sudo systemctl restart smbd
@@ -132,16 +114,14 @@ sudo systemctl restart smbd
 
 ## Faza 5: Autostart Klasyfikatora (Usługa systemd)
 
-Konfiguracja automatycznego uruchamiania programu `run.sh` po podłączeniu powerbanka.
+Zarejestruj skrypt startowy jako serwis systemowy uruchamiany w tle zaraz po bootowaniu urządzenia.
 
-1. Utwórz plik usługi:
-
+1. Utwórz plik konfiguracyjny usługi:
 ```bash
 sudo nano /etc/systemd/system/birdnet.service
 ```
 
-2. Wklej poniższy kod:
-
+2. Wklej kompletną konfigurację demona startowego:
 ```ini
 [Unit]
 Description=Embedded Bird Classifier
@@ -159,8 +139,7 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-3. Zapisz plik i uruchom usługę na stałe:
-
+3. Zapisz zmiany (`Ctrl+O`, `Enter`, `Ctrl+X`), przeładuj konfigurację i aktywuj usługę:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable birdnet.service
@@ -169,23 +148,11 @@ sudo systemctl start birdnet.service
 
 ---
 
-## Instrukcja Obsługi Terenowej
+## Zarządzanie i Diagnostyka SSH
 
-Po umieszczeniu urządzenia w docelowej lokalizacji i podłączeniu zasilania, system uruchamia się i rozpoczyna działanie autonomiczne. Do interakcji użyj komputera lub telefonu.
+Użyj poniższych komend w terminalu do kontroli działania urządzenia:
 
-**Krok 1:** Połącz się z siecią Wi-Fi: `DrzewoBirdNET` (Hasło: `HasloDoDrzewa`). Zignoruj ostrzeżenie o braku internetu.
-
-### Dostęp do danych (Opcje do wyboru):
-
-- **Przez Przeglądarkę (Szybki podgląd i pobieranie):**
-  Otwórz Chrome/Edge i wejdź na adres: `http://10.42.0.1:8000`
-- **Przez Eksplorator Windows (Zarządzanie i usuwanie plików):**
-  W pasku adresu dowolnego folderu wpisz: `\\10.42.0.1\Raspberry` (Zaloguj się danymi użytkownika `user`).
-- **Przez SSH (Zaawansowane sterowanie / Terminal):**
-  Otwórz PowerShell i wpisz: `ssh user@10.42.0.1`
-
-### Przydatne komendy SSH:
-
-- Sprawdzenie statusu aplikacji: `sudo systemctl status birdnet.service`
-- Podgląd działania na żywo (logi nasłuchu): `journalctl -u birdnet.service -f`
-- Bezpieczne wyłączenie zasilania: `sudo shutdown -h now`
+* **Sprawdzenie statusu aplikacji:** `sudo systemctl status birdnet.service`
+* **Podgląd działania na żywo (logi nasłuchu):** `journalctl -u birdnet.service -f`
+* **Zrestartowanie klasyfikatora:** `sudo systemctl restart birdnet.service`
+* **Bezpieczne wyłączenie zasilania:** `sudo shutdown -h now`

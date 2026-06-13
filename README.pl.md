@@ -1,3 +1,7 @@
+<p align="center">🇬🇧 <b>English:</b> <a href="README.md">Documentation</a> • <a href="Raspberry_config.md">Configuration</a> │ 🇵🇱 <b>Polski:</b> <a href="README.pl.md">Dokumentacja</a> • <a href="Raspberry_config-PL.md">Konfiguracja</a></p>
+
+---
+
 # Dokumentacja: Embedded Bird Classifier
 
 **Autorzy projektu:** Emil Siatka, Mateusz Szwagierczak  
@@ -10,14 +14,14 @@
 
 ## 1. Wstęp i Cel Projektu
 
-Projekt **Embedded Bird Classifier** to autonomiczne urządzenie wbudowane przeznaczone do stałego nagrywania dźwięków otoczenia i automatycznego rozpoznawania gatunków ptaków. Dźwięki rozpoznanych ptaków są zapisywane wraz z inforamcjami o czasie nagrania, rozpoznanym gatunku, i pewności klasyfikacji. System został zaprojektowany do pracy w warunkach terenowych, bez dostępu do sieci internetowej oraz stałego zasilania z gniazdka.
+Projekt **Embedded Bird Classifier** to autonomiczne urządzenie wbudowane przeznaczone do stałego nagrywania dźwięków otoczenia i automatycznego rozpoznawania gatunków ptaków. Dźwięki rozpoznanych ptaków są zapisywane wraz z informacjami o czasie nagrania, rozpoznanym gatunku i pewności klasyfikacji. System został zaprojektowany do pracy w warunkach terenowych, bez dostępu do sieci internetowej oraz stałego zasilania z gniazdka.
 
 ### Główne założenia funkcjonalne:
 
 - Cykliczne nagrywanie próbek dźwiękowych z otoczenia za pomocą podłączonego mikrofonu.
 - Klasyfikacja ptaków na podstawie nagrań oraz przetwarzanie ich w czasie rzeczywistym bezpośrednio na Raspberry Pi za pomocą modelu `BirdNet`.
 - Zapisywanie pociętych próbek audio oraz logów w plikach JSON.
-- Uruchomienie hotspot'a w celu podglądu rezultatów na smartfonie lub komputerze bez użycia internetu lub pobrania danych do formie archiwum ZIP i .
+- Uruchomienie hotspotu w celu podglądu rezultatów na smartfonie lub komputerze bez użycia internetu lub pobrania danych w formie archiwum ZIP.
 
 ---
 
@@ -67,7 +71,7 @@ System składa się z niezależnych usług systemowych oraz modułów aplikacyjn
 /home/user/bird_classifier/
 ├── autorun_logs.md                 # Logi diagnostyczne autostartu
 ├── bird_images/                    # Lokalna baza zdjęć ptaków do interfejsu
-├── .env                            # Konfiguracja i zmienne środowiskowe
+├── .env                            # Konfiguracja i zmiennesrodowiskowe
 ├── frontend/                       # Kod źródłowy aplikacji React (Vite)
 │   ├── index.html
 │   ├── package.json
@@ -146,7 +150,7 @@ Struktura pliku JSON zawiera pełne informacje o rozpoznanym gatunku oraz pewno�
   <sub><b>Rysunek 4:</b> Widok struktury pliku JSON wysyłanego do aplikacji frontendowej.</sub>
 </p>
 
-5. **Wyświetlanie wyników:** Serwer FastAPI udostępnia endpointy API oraz pozwala na pobieranie plików. Panel użytkownika w React odpytuje serwer co 5 sekund, automatycznie odświeżając wykresy i listę nagrań na ekranie.
+5. **Wyświetlanie wyników:** Serwer FastAPI udostępnia endpointy API oraz pozwala na pobieranie plików. Panel użytkownika w React odpytuje serwer co 5 sekund, automatycznie odświeżając wykresy i lista nagrań na ekranie.
 
 ---
 
@@ -261,30 +265,69 @@ Serwer FastAPI udostępnia interfejs API dla aplikacji WWW, umożliwia pobranie 
 
 ---
 
-## 7. Środowisko Systemowe, Autostart i Wdrożenie Terenowe
+## 7. Środowisko Systemowe, Autostart i Instalacja (Wdrożenie)
 
-Urządzenie działa w pełni samodzielnie dzięki odpowiedniej konfiguracji usług systemowych i sieci na poziomie systemu operacyjnego Linux.
+Urządzenie działa w pełni samodzielnie dzięki odpowiedniej konfiguracji usług systemowych i sieci na poziomie systemu operacyjnego Linux. Poniżej opisano kompletny proces wdrożenia od podstaw.
 
-### 7.1. Konfiguracja sieci (Hotspot w terenie)
+### 7.1. Aktualizacja i instalacja zależności systemowych
+W pierwszej kolejności należy pobrać pakiety repozytoriów, zaktualizować system oraz doinstalować wymagane sterowniki dźwięku, kodery multimedialne, serwer plików oraz narzędzie konwersji formatu tekstu:
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install libportaudio2 ffmpeg samba samba-common-bin dos2unix -y
+```
 
-Za pomocą narzędzia NetworkManager (`nmcli`) karta Wi-Fi malinki (`wlan0`) została skonfigurowana jako punkt dostępowy:
+### 7.2. Naprawa uprawnień i formatowania plików
+Pliki kodu źródłowego kopiowane ze środowisk Windows mogą posiadać ukryte znaki końca linii (CRLF), co skutkuje błędami interpretera w Linux. Należy je znormalizować (LF) i nadać uprawnienia wykonawcze:
+```bash
+# Przejęcie własności katalogu projektu przez użytkownika 'user'
+sudo chown -R user:user /home/user/bird_classifier
 
+# Nadanie praw wykonywania dla skryptów powłoki
+chmod +x /home/user/bird_classifier/run.sh
+chmod +x /home/user/bird_classifier/setup.sh
+
+# Konwersja formatowania na standard uniksowy
+sudo dos2unix /home/user/bird_classifier/run.sh
+sudo dos2unix /home/user/bird_classifier/setup.sh
+```
+
+### 7.3. Konfiguracja wirtualnego środowiska Python (venv)
+Aplikacja backendowa wymaga odizolowanego środowiska i instalacji dedykowanych bibliotek:
+```bash
+cd /home/user/bird_classifier
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 7.4. Identyfikacja mikrofonu USB
+Aby aplikacja poprawnie rejestrowała dźwięk, należy zidentyfikować podłączone urządzenie wejściowe. Będąc wewnątrz środowiska wirtualnego, wykonaj:
+```bash
+python3 -c "import sounddevice as sd; print(sd.query_devices())"
+```
+Otrzymany indeks lub nazwę (np. "USB Audio Device") należy wpisać na sztywno do pliku konfiguracyjnego `run.sh` w parametrze `RECORDER_ARGS="-m <identyfikator>"`.
+
+### 7.5. Blokada zarządzania energią i usypiania
+W warunkach terenowych minikomputer nie może przejść w stan uśpienia ani odłączać zasilania karty sieciowej:
+```bash
+sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+```
+
+### 7.6. Konfiguracja sieci (Hotspot w terenie)
+Za pomocą modułu NetworkManager (`nmcli`) bezprzewodowa karta sieciowa `wlan0` zostaje przełączona w tryb punktu dostępowego (AP). Flaga `autoconnect` zapewnia ponowne uruchomienie sieci po zaniku zasilania:
 ```bash
 sudo nmcli device wifi hotspot ifname wlan0 ssid DrzewoBirdNET password HasloDoDrzewa
 sudo nmcli connection modify Hotspot connection.autoconnect yes
 ```
-
-Malinka ma w tej sieci stały adres IP: `10.42.0.1`.
+Adres IP malinki w tym punkcie dostępowym jest przypisany statycznie i wynosi `10.42.0.1`.
 
 <p align="center">
   <img src="screens/connected_wifi.png" width="400" alt="Sieć wifi" /><br>
   <sub><b>Rysunek 9:</b> Połączenie z siecią Wi-Fi generowaną przez urządzenie.</sub>
 </p>
 
-### 7.2. Udostępnianie plików przez Sambę
-
-Aby ułatwić bezpośredni dostęp do plików z komputera, skonfigurowano serwer Samba (`smbd`). W pliku `/etc/samba/smb.conf` dodano wpis:
-
+### 7.7. Udostępnianie plików przez Sambę
+W celu natywnego pobierania danych prosto do systemów Windows, w pliku konfiguracyjnym `/etc/samba/smb.conf` dodano wpis udostępniający zasób dyskowy:
 ```ini
 [Raspberry]
    path = /home/user
@@ -295,20 +338,19 @@ Aby ułatwić bezpośredni dostęp do plików z komputera, skonfigurowano serwer
    directory mask = 0755
    force user = user
 ```
-
-Dzięki temu katalog domowy urządzenia można zamontować jako dysk sieciowy:
+Zatwierdzenie konfiguracji wymaga zdefiniowania hasła użytkownika oraz restartu usługi systemowej:
+```bash
+sudo smbpasswd -a user
+sudo systemctl restart smbd
+```
 
 <p align="center">
   <img src="screens/samba_windows.png" width="550" alt="Samba Windows" /><br>
   <sub><b>Rysunek 10:</b> Dostęp do plików projektu z poziomu Eksploratora Windows.</sub>
 </p>
 
-### 7.3. Automatyczne uruchamianie procesów (Systemd)
-
-Usługa `birdnet.service` dba o to, aby skrypt startowy `run.sh` włączał się samoczynnie od razu po uruchomieniu malinki (gdy tylko załadują się systemy audio i sieciowe), a także w razie błędu uruchamiał procesy ponownie.
-
-Plik konfiguracyjny usługi (`/etc/systemd/system/birdnet.service`):
-
+### 7.8. Automatyczne uruchamianie procesów (Systemd)
+Menedżer systemd nadzoruje automatyczny start głównego skryptu `run.sh` bezpośrednio po wykryciu zasilania. Plik konfiguracyjny usługi znajduje się pod ścieżką `/etc/systemd/system/birdnet.service`:
 ```ini
 [Unit]
 Description=Embedded Bird Classifier
@@ -325,8 +367,14 @@ RestartSec=10
 [Install]
 WantedBy=multi-user.target
 ```
+Rejestracja i start usługi w systemie operacyjnym:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable birdnet.service
+sudo systemctl start birdnet.service
+```
 
-Nagrania z poszczególnych dni są zapisywane w osobnych folderach, co ułatwia zachowanie porządku:
+Zapisywane nagrania są automatycznie dzielone i segregowane w folderach według dat sesji:
 
 <p align="center">
   <img src="screens/logs_term.png" width="400" alt="Struktura logów terminal" /><br>
@@ -335,21 +383,18 @@ Nagrania z poszczególnych dni są zapisywane w osobnych folderach, co ułatwia 
 
 ---
 
-## 8. Instrukcja Obsługi i Procedury Terenowe
+## 8. Połączenie i workflow
 
 ### Krok 1: Uruchomienie i Połączenie
-
 1. Podłącz urządzenie do powerbanka. Odczekaj około 40–60 sekund na uruchomienie systemu.
 2. Na telefonie lub komputerze znajdź sieć Wi-Fi o nazwie **`DrzewoBirdNET`** i zaloguj się hasłem **`HasloDoDrzewa`**. Ignoruj komunikat o braku dostępu do internetu.
 
 ### Krok 2: Przeglądanie danych (Trzy sposoby)
-
 - **Panel WWW (Zalecany):** Otwórz przeglądarkę i wpisz adres `http://10.42.0.1:5173`. Zobaczysz panel użytkownika, w którym z menu bocznego możesz wybrać interesującą Cię sesję, aby przeglądać wykresy i odsłuchiwać nagrania ptaków.
 - **Eksplorator Windows:** Wpisz w pasek adresu managera plików: `\\10.42.0.1\Raspberry`. Po podaniu loginów użytkownika systemu (`user`), zyskasz bezpośredni dostęp do folderów na karcie pamięci.
 - **Konsola (SSH):** Do celów diagnostycznych możesz połączyć się przez SSH: `ssh user@10.42.0.1`.
 
 ### Krok 3: Pobieranie danych i czyszczenie pamięci
-
 Zarządzanie zapisanymi plikami odbywa się w lewym panelu aplikacji:
 
 <p align="center">
@@ -387,7 +432,7 @@ Zarządzanie zapisanymi plikami odbywa się w lewym panelu aplikacji:
   <sub><b>Rysunek 17:</b> Wycięte, krótkie nagrania audio poszczególnych śpiewów ptaków.</sub>
 </p>
 
-4. Po upewnieniu się, że pliki zostały w całości zapisane na Twoim komputerze lub telefonie, kliknij czerwony przycisk **"Wyczyść Malinkę"** i potwierdź operację w oknie, które się pojawi:
+4. Po upewnieniu się, że pliki zostały w całości zapisane na Twoim telefonie lub komputerze, kliknij czerwony przycisk **"Wyczyść Malinkę"** i potwierdź operację w oknie, które się pojawi:
 
 <p align="center">
   <img src="screens/confirm_deleting.png" width="500" alt="Alert usunięcia" /><br>
@@ -410,3 +455,9 @@ Zarządzanie zapisanymi plikami odbywa się w lewym panelu aplikacji:
   <img src="screens/deleted_files_term.png" width="400" alt="Czyste drzewo" /><br>
   <sub><b>Rysunek 21:</b> Widok pustej struktury folderów roboczych w terminalu.</sub>
 </p>
+
+### 8.4. Przydatne komendy SSH (Diagnostyka terminalowa)
+- Sprawdzenie statusu aplikacji: `sudo systemctl status birdnet.service`
+- Podgląd działania na żywo (logi nasłuchu): `journalctl -u birdnet.service -f`
+- Ręczne zrestartowanie usługi: `sudo systemctl restart birdnet.service`
+- Bezpieczne wyłączenie zasilania: `sudo shutdown -h now`

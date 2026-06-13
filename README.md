@@ -1,4 +1,8 @@
-# Technical and Design Documentation: Embedded Bird Classifier
+<p align="center">🇬🇧 <b>English:</b> <a href="README.md">Documentation</a> • <a href="Raspberry_config.md">Configuration</a> │ 🇵🇱 <b>Polski:</b> <a href="README.pl.md">Dokumentacja</a> • <a href="Raspberry_config-PL.md">Konfiguracja</a></p>
+
+---
+
+# Embedded Bird Classifier
 
 **Project Authors:** Emil Siatka, Mateusz Szwagierczak  
 **Release Date:** June 2026  
@@ -10,142 +14,143 @@
 
 ## 1. Introduction and Project Objective
 
-The **Embedded Bird Classifier** project is an autonomous, integrated embedded device designed for long-term, field acoustic monitoring of avifauna (birds). The system is engineered to operate in harsh environmental conditions (the so-called "forest mode"), without permanent access to network infrastructure or an external grid power supply.
+The **Embedded Bird Classifier** project is an autonomous embedded device designed for continuous environmental audio recording and automatic bird species recognition. The sounds of recognized birds are saved along with timestamps, identified species, and classification confidence scores. The system is engineered to operate in field conditions without internet access or a continuous mains power supply.
 
-### Key Functional Requirements:
+### Main Functional Features:
 
-- **Autonomous Continuous Monitoring:** Cyclic recording of environmental audio samples using a dedicated audio path.
-- **Local AI Analysis (Edge Computing):** Real-time processing and classification of recordings directly on the device using deep learning algorithms (`BirdNet`).
-- **Isolated Field Data Distribution:** Emitting its own Wi-Fi Access Point (Hotspot), enabling wireless data downloads and results preview on mobile devices or computers without internet usage.
-- **Secure Storage Management:** Aggregating trimmed audio samples and logs into structured JSON files with the capability to export them to a compressed ZIP archive and remotely clear the flash memory.
+- Cyclic recording of ambient audio samples using a connected microphone.
+- Bird classification based on recordings, processed in real-time directly on the Raspberry Pi using the `BirdNet` model.
+- Storage of segmented audio samples and logs in JSON format.
+- Independent Wi-Fi hotspot deployment to review results on a smartphone or computer without an internet connection, or to download data as a ZIP archive.
 
 ---
 
 ## 2. Hardware Specification and Architecture
 
-The device features a modular design built upon COTS (Commercial Off-The-Shelf) components, ensuring structural repeatability and ease of maintenance.
+The device features a modular design built on easily accessible components, making the setup straightforward to replicate.
 
-| Component                 | Model / Manufacturer          | Role in the System                                                                   | Technical Specification / Notes                                                                                                     |
-| :------------------------ | :---------------------------- | :----------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------- |
-| **Central Unit**          | Raspberry Pi 4 Model B        | Main computing processor, hosting the operating system, AI analysis, API/Web server. | Broadcom BCM2711 (Quad-core Cortex-A72 @1.5GHz), 2GB LPDDR4 RAM, built-in 2.4/5.0 GHz Wi-Fi module.                                 |
-| **Power System**          | Xiaomi Powerbank              | Autonomous energy source, UPS buffer functionality.                                  | Support for pass-through charging technology (simultaneous battery charging and powering the minicomputer from an external source). |
-| **Audio Input Interface** | Esperanza lavalier microphone | Capturing acoustic signals from the environment.                                     | Omnidirectional characteristic, frequency response tailored for recording nature sounds.                                            |
-| **ADC Converter**         | LogiLink USB Sound Card       | Digitizing the analog signal from the microphone.                                    | Chipset supporting Plug&Play standard in Linux, dedicated 3.5 mm TRS microphone input.                                              |
-| **External Enclosure**    | S-BOX electrical box (Pawbol) | Protecting components from weather conditions.                                       | IP65 waterproof rating, made of high mechanical strength polypropylene.                                                             |
+| Component | Model / Manufacturer | Role in the System | Technical Specification / Notes |
+| :--- | :--- | :--- | :--- |
+| **Central Unit** | Raspberry Pi 4 Model B | Main minicomputer; runs processes, handles audio analysis, hosts API/Web server. | Broadcom BCM2711 (Quad-core Cortex-A72 @1.5GHz), 2GB LPDDR4 RAM, built-in 2.4/5.0 GHz Wi-Fi. |
+| **Power Unit** | Xiaomi Power Bank | Power source; acts as a UPS buffer. | Supports pass-through charging (simultaneously charges the power bank and powers the minicomputer from an external source). |
+| **Microphone** | Esperanza Lavalier Microphone | Captures bird vocalizations from the environment. | Omnidirectional polar pattern, frequency response optimized for capturing nature sounds. |
+| **Sound Card** | LogiLink USB Sound Card | Converts analog microphone signals to digital format. | Plug&Play operation under Linux, dedicated 3.5 mm TRS microphone input. |
+| **Enclosure** | S-BOX Electrical Junction Box (Pawbol) | Protects components from rain and moisture. | IP65 ingress protection rating, made of durable polypropylene. |
 
-### Physical Integration and Sealing:
+### Assembly and Weatherproofing:
 
-Components inside the S-BOX container have been immobilized using power cables and nylon cable ties (zip ties), protecting them from mechanical damage during transport. The audio path was routed outside the enclosure through a factory cable gland. The microphone outlet and critical structural connections were sealed with hot-melt glue, ensuring excellent insulation against moisture and rain. Outside the box, the microphone is shielded by a dedicated, perforated protective grille.
+Components inside the S-BOX enclosure are secured with zip ties to prevent movement during transit. The microphone cable is routed outside through a factory rubber cable gland. The exit point and enclosure seams are sealed with hot glue to safeguard the interior against humidity. Outside the box, the microphone is shielded by a perforated protective mesh cover.
 
-#### Visual Documentation of Hardware Components:
+#### Hardware Component Visuals:
 
 <p align="center">
-  <img src="screens/box_outside.jpg" width="550" alt="External IP65 Enclosure" /><br>
-  <sub><b>Figure 1:</b> Autonomous measurement capsule in the S-BOX enclosure with a routed and secured microphone at the bottom.</sub>
+  <img src="screens/box_outside.jpg" width="550" alt="IP65 External Enclosure" /><br>
+  <sub><b>Figure 1:</b> Closed S-BOX enclosure with the microphone routed at the bottom.</sub>
 </p>
 
 <p align="center">
   <img src="screens/box_inside.jpg" width="550" alt="Internal Configuration" /><br>
-  <sub><b>Figure 2:</b> Component layout inside the electrical box. Visible securing of the Raspberry Pi 4, buffer powerbank, and the miniature LogiLink USB sound card.</sub>
+  <sub><b>Figure 2:</b> Layout of the Raspberry Pi 4, power bank, and USB sound card inside the enclosure.</sub>
 </p>
 
 ---
 
 ## 3. Software Architecture and Tech Stack
 
-The system operates on a multi-process architecture, consisting of independent yet closely cooperating system services and application modules.
+The system consists of independent background system services and application modules working cooperatively.
 
 ### Tech Stack:
 
-- **Operating System:** Raspberry Pi OS (64-bit), optimized by disabling power-saving subsystems (complete acpi/sleep blocking via `systemctl mask`).
-- **Backend:** Python 3.11+ embedded in an isolated virtual environment (`venv`). Key libraries: `FastAPI` (REST API server), `uvicorn` (ASGI server), `birdnetlib` (local inference of the TensorFlow Lite model), `watchdog` (reactive file system event monitoring), `sounddevice` and `scipy` (audio buffer management and WAV writing), `pydub` (audio file manipulation).
-- **Frontend:** Single Page Application (SPA) built using the `React` framework and the `Vite` build tool. Styling implemented with `TailwindCSS`, the `Lucide React` icon set, and dynamic chart components from `Recharts`.
+- **Operating System:** Raspberry Pi OS (64-bit). Power-saving features are disabled (`systemctl mask` for acpi/sleep) to prevent the device from entering sleep mode in the field.
+- **Backend:** Python 3.11+ running inside a virtual environment (`venv`). Main libraries: `birdnetlib` (manages the BirdNet TensorFlow Lite recognition model), `watchdog` (automatically detects new audio files), `sounddevice` and `scipy` (audio recording and WAV generation), `pydub` (audio segment slicing), `FastAPI` (handles frontend communication), `uvicorn` (Web server).
+- **Frontend:** Single Page Application built with `React` using `Vite`. Styling is managed via `TailwindCSS`, icons are provided by `Lucide React`, and charts are rendered using `Recharts`.
 
 ### Project Directory Structure:
 
 ```text
 /home/user/bird_classifier/
 ├── autorun_logs.md                 # Autostart diagnostic logs
-├── bird_images/                    # Local database of bird species images for the UI
-├── frontend/                       # Source code of the React application (Vite)
+├── bird_images/                    # Local database of bird images for the UI
+├── .env                            # Configuration and environment variables
+├── frontend/                       # React application source code (Vite)
 │   ├── index.html
 │   ├── package.json
 │   ├── tailwind.config.js
 │   └── src/
-│       ├── App.jsx                 # Main dashboard interface
+│       ├── App.jsx                 # Main user dashboard logic
 │       ├── main.jsx
 │       └── index.css
-├── frontend.log                    # Output logs of the Vite development server
-├── Raspberry_config-PL.md          # Basic deployment manual
-├── requirements.txt                # Pip dependencies for Python
-├── run.sh                          # Main process orchestration script
-├── setup.sh                        # Installation and configuration script
-├── src/                            # Backend scripts (Core)
+├── frontend.log                    # Vite server runtime logs
+├── Raspberry_config-EN.md          # System installation guide
+├── requirements.txt                # List of Python dependencies
+├── run.sh                          # Main startup script launching all processes
+├── setup.sh                        # Automated Pi configuration script
+├── src/                            # Core backend scripts
 │   ├── __init__.py
-│   ├── analyzer.py                 # AI classification and file change detection process
-│   ├── log_reader.py               # Audio segmentation module (pydub)
-│   ├── recorder.py                 # Continuous microphone recording process
-│   └── server.py                   # Main FastAPI server + static file serving
-└── running/                        # Dynamic system working directory (Runtime)
-    ├── export.zip                  # Temporary data export package
-    ├── analizing_results/          # Session report files in JSON format
-    ├── new_audio_samples/          # Input buffer for raw WAV files (9s)
-    └── saved_audio_samples/        # Chronological subdirectories with segmented samples
+│   ├── analyzer.py                 # Bird recognition and file detection logic
+│   ├── log_reader.py               # Audio segment extraction (pydub)
+│   ├── recorder.py                 # Continuous ambient audio recording
+│   └── server.py                   # FastAPI server handling frontend requests
+└── running/                        # Runtime work directory
+    ├── export.zip                  # Temporary ZIP package for data download
+    ├── analizing_results/          # JSON files containing recognition results
+    ├── new_audio_samples/          # Buffer directory for raw 9-second WAV files
+    └── saved_audio_samples/        # Session folders containing sliced audio clips
 ```
 
-The correct deployment of the file structure and the execution flags of the shell scripts can be verified via the Linux file listing:
+The following terminal screenshot verifies the correct file structure layout and executable permissions configured for the `.sh` scripts:
 
 <p align="center">
   <img src="screens/project_catalog.png" width="550" alt="Project Directory" /><br>
-  <sub><b>Figure 3:</b> Checking the structure of the operating environment and execution flags (+x) for run.sh and setup.sh.</sub>
+  <sub><b>Figure 3:</b> Directory structure and file execution permissions in the terminal.</sub>
 </p>
 
 ---
 
-## 4. Data Flow in the System
+## 4. System Data Flow
 
-The system operates as a closed data processing loop without human intervention:
+The device processes incoming data continuously according to the following diagram:
 
 ```text
 [ Environment ]
-      │ (Analog Audio)
-      ▼
-[ Microphone + USB Card ] ──(48kHz PCM)──> [ src/recorder.py ]
+       │ (Analog Audio)
+       ▼
+[ Mic + USB Sound Card ] ──(48kHz PCM)──> [ src/recorder.py ]
                                                  │
-                                                 ▼ (Saving audio_*.wav file every 9 sec)
+                                                 ▼ (Saves audio_*.wav every 9 seconds)
                                           [ running/new_audio_samples/ ]
                                                  │
-                                                 ▼ (Watchdog on_created event)
+                                                 ▼ (Watchdog detects new file)
                                           [ src/analyzer.py ]
                                                  │
                     ┌────────────────────────────┴────────────────────────────┐
-                    ▼ (BirdNet TFLite Inference)                              ▼ (Segment Clipping)
+                    ▼ (BirdNet TFLite Analysis)                               ▼ (Segment Extraction)
            [ Classification Results ]                                  [ src/log_reader.py ]
                     │                                                         │
-                    ▼ (Data Formatting)                                       ▼ (pydub WAV Exporter)
+                    ▼ (Append to file)                                        ▼ (Save small WAV clip)
      [ running/analizing_results/analysis_*.json ]               [ running/saved_audio_samples/[Session]/ ]
                     │                                                         │
                     └────────────────────────────┬────────────────────────────┘
                                                  ▼
                                          [ FastAPI Server ]
                                                  │
-                                                 ▼ (HTTP/REST API)
-                                      [ Dashboard UI (React) ]
+                                                 ▼ (Data served over HTTP)
+                                       [ User Dashboard (React) ]
 ```
 
-1.  **Signal Registration:** The `recorder.py` module opens an input stream on the designated audio device (LogiLink sound card). It samples the mono signal at 48 kHz. Every 9 seconds, the buffer content is written to an `audio_[TIMESTAMP].wav` file in the `new_audio_samples` temporary directory. A pseudo-graphic volume unit meter (VU-meter) is generated in the console to depict the volume level.
-2.  **New Sample Detection:** The `analyzer.py` script utilizes the `watchdog` mechanism to monitor the `new_audio_samples` directory. Detecting a creation event (`on_created`) for a `.wav` file pauses the thread for 1 second (a buffer preventing data racing on slow SD cards), then forwards the file to the analysis engine.
-3.  **AI Classification:** The `BirdNetLib` engine initializes the local TensorFlow Lite model, passing geographical coordinates (default Warsaw: lat=52.2, lon=21.0) to improve prediction accuracy by filtering out species that do not occur in that specific biogeographical zone.
-4.  **Preservation and Segmentation:** If the model detects a bird with the required confidence threshold, the file path and the full array of detections are passed to the `analyzer.py` process. The system opens or appends the record to the `analysis_[SESSION].json` file. Concurrently, the `log_reader.py` module (utilizing `pydub`) cuts the exact time segment (`start_time` to `end_time`) where the model identified the vocalization from the 9-second base file, and exports it as a small `.wav` file into the chronological structure.
+1. **Audio Recording:** The `recorder.py` script initializes a 48 kHz mono recording stream. Every 9 seconds, it flushes the buffer to a file named `audio_[TIMESTAMP].wav` inside the temporary `new_audio_samples` directory.
+2. **File Detection:** The `analyzer.py` script leverages the `watchdog` module to monitor `new_audio_samples`. When a new `.wav` file appears, the script pauses for one second (ensuring the OS has finished writing the file to disk) and passes it to the BirdNet model.
+3. **Bird Recognition:** The `BirdNetLib` library executes a local TensorFlow Lite instance. Geographic coordinates are fed into the model (defaulting to Warsaw: lat=52.2297, lon=21.0122) to automatically filter out bird species not present in the region, significantly reducing false positives. These coordinates can be adjusted via the `.env` file.
+4. **Logging and Slicing:** If the model matches a bird with sufficient confidence, the metadata is appended to `analysis_[SESSION].json`. Simultaneously, the `log_reader.py` module uses `pydub` to isolate the exact timestamp range where the bird vocalization was detected, saving it as a short, standalone `.wav` clip.
 
-The resulting JSON file structure aggregates nested detections along with the full taxonomy provided by the BirdNet engine:
+The JSON payload schema encapsulates comprehensive data regarding the detected species and classification score:
 
 <p align="center">
-  <img src="screens/json_web.png" width="550" alt="JSON Data Format" /><br>
-  <sub><b>Figure 4:</b> Preview of the JSON key structure sent to the frontend, containing timeframes and prediction probability (confidence).</sub>
+  <img src="screens/json_web.png" width="550" alt="JSON Format" /><br>
+  <sub><b>Figure 4:</b> Layout of the JSON data structure served to the frontend application.</sub>
 </p>
 
-5.  **Data Consumption:** The FastAPI server exposes REST endpoints and mounts static file access points. The React frontend application polls the server at a 5-second interval (Live-Reload), fetching the freshest detection data and rendering charts as well as an interactive audio player.
+5. **Displaying Results:** The FastAPI server exposes API endpoints and manages static file downloads. The React user dashboard polls the server every 5 seconds, dynamically updating the metrics, charts, and the list of playable recordings.
 
 ---
 
@@ -153,10 +158,10 @@ The resulting JSON file structure aggregates nested detections along with the fu
 
 ### 5.1. `src/recorder.py`
 
-Process responsible for low-level audio device I/O operations. Implements automatic USB microphone discovery.
+This script interfaces with the USB sound card to record environmental audio.
 
 ```python
-# Key fragment of the audio buffer registration mechanism
+# Audio recording buffer mechanism and disk output
 def record(device_id):
     samplerate = 48000
     channels = 1
@@ -165,7 +170,7 @@ def record(device_id):
     recording_buffer = []
 
     def callback(indata, frames, time_info, status):
-        # Calculating the modulation level and rendering the VU bar in the console
+        # Calculate volume metrics and display a simple VU meter in the console
         volume_norm = np.linalg.norm(indata) * 20 / np.sqrt(len(indata))
         recording_buffer.append(indata.copy())
         level = min(int(volume_norm * BAR_LENGTH), BAR_LENGTH)
@@ -181,7 +186,7 @@ def record(device_id):
 
 ### 5.2. `src/analyzer.py`
 
-The analytical core of the system. Operates based on Event-Driven Architecture.
+The main orchestrator handling audio analysis and coordinating file system outputs.
 
 ```python
 class BirdWatchHandler(FileSystemEventHandler):
@@ -189,13 +194,13 @@ class BirdWatchHandler(FileSystemEventHandler):
         if event.is_directory or not event.src_path.lower().endswith(".wav"):
             return
 
-        time.sleep(1) # Protecting IO from incomplete file write
+        time.sleep(1) # Wait for SD card write operation to finalize
         try:
             recording = Recording(analyzer, event.src_path, lat=52.2, lon=21.0)
             recording.analyze()
 
             if recording.detections:
-                # Operational block for incremental writing to the JSON file
+                # Append new detections to the active JSON session log
                 if not os.path.exists(file_path):
                     with open(file_path, "w", encoding="utf-8") as f: json.dump([], f)
 
@@ -212,7 +217,7 @@ class BirdWatchHandler(FileSystemEventHandler):
                     json.dump(data, f, indent=4, ensure_ascii=False)
                     f.truncate()
 
-                # Calling the external audio extraction submodule
+                # Slice the exact audio fragment containing the bird call
                 segment_audio_parts(recording.detections, event.src_path, SESSION_WAV_DIR, f"{os.path.basename(event.src_path)[:-4]}")
         except Exception as e:
             print(f"Analysis error: {e}")
@@ -220,77 +225,109 @@ class BirdWatchHandler(FileSystemEventHandler):
 
 ### 5.3. `src/server.py`
 
-FastAPI server exposing the application programming interface (API) and performing storage wiping as well as on-the-fly ZIP archive creation.
+The FastAPI server exposes endpoints for the web app, coordinates file aggregation, and handles system data wipes.
 
-- `GET /api/results`: Returns a list of recorded sessions (`.json` files) sorted descending (newest on top).
-- `GET /api/export`: Dynamically packs the entire structure of `analizing_results` and session folders from `saved_audio_samples` into a single optimized ZIP archive. This prevents download data fragmentation.
-- `DELETE /api/clear`: Performs a cascade removal of all output data from the SD memory card, restoring the system to a clean state (system response visible in the `confirmation_deletion.png` screenshots).
+- `GET /api/results`: Returns a listed index of active sessions (`.json` files), ordered chronologically.
+- `GET /api/export`: Archives all system analytics logs and audio snippets on-the-fly into a single ZIP file for seamless extraction.
+- `DELETE /api/clear`: Flushes the active contents of the results and recordings directories, prepping the local storage for a clean session.
 
 ---
 
 ## 6. User Interface (Frontend - React)
 
-The client application implements an Operational Dashboard design pattern running in Dark Mode.
+### Core UI Mechanics in `App.jsx`:
 
-### Key Mechanisms Implemented in `App.jsx`:
+1. **Background Refresh Management:** A React `useRef` reference holds the active session state. This ensures that the background polling interval (`setInterval` firing every 5 seconds) always pulls updates relevant to the current session view without triggering UI blinks or view state resets.
+2. **Chart Data Compilation:** The `generateChartData` routine aggregates bird species metrics within the current session, feeding structured arrays directly into the `<BarChart>` component provided by `recharts`.
+3. **Cache Busting Strategy:** Audio playback links and JSON reports are appended with an ephemeral timestamp query parameter (`?t=${new Date().getTime()}`). This prevents mobile web browsers from aggressive asset caching, forcing them to always read real-time data chunks.
 
-1.  **Avoiding Stale Closures in Asynchronous Intervals:** An advanced pattern with a `useRef` reference was applied to maintain the active file state:
-    ```javascript
-    const selectedFileRef = useRef(selectedFile);
-    selectedFileRef.current = selectedFile;
-    ```
-    This ensures that the running `setInterval` process (executing every 5 seconds) always has access to the session currently selected by the user, allowing seamless background chart refreshes without interrupting user interaction (no loading screen flickering effect).
-2.  **Chart Data Aggregation:** The `generateChartData` function maps the nested detection structure from the JSON format into a flat associative structure, counting the occurrences of unique species (`common_name`), and then sorts the results in descending order. The result is passed to the `<BarChart>` component from the `recharts` library.
-3.  **Media Handling and Cache-Busting:** Audio sample and JSON report URLs are parameterized with a unique timestamp (`?t=${new Date().getTime()}`). This prevents aggressive file caching by mobile browsers (e.g., Google Chrome on Android/iOS), forcing a fresh retrieval of the updated file from the FastAPI server during live monitoring.
-
-#### Showcase of Graphical User Interface (UI) States:
+#### Dashboard Interface States:
 
 <p align="center">
-  <img src="screens/start_screen_web.png" width="550" alt="Initial Dashboard View" /><br>
-  <sub><b>Figure 5:</b> View of the main panel after device boot (waiting for a recorded session selection).</sub>
+  <img src="screens/start_screen_web.png" width="550" alt="Default Dashboard State" /><br>
+  <sub><b>Figure 5:</b> Main web panel interface prior to selecting an active data session.</sub>
 </p>
 
 <p align="center">
-  <img src="screens/birds_found_1.png" width="550" alt="Detections State 1" /><br>
-  <sub><b>Figure 6:</b> Analysis of the selected session file. On the right, a chronological preview of detections is visible, and in the central part, an aggregated bar chart for the Spotted Crake and Long-eared Owl species.</sub>
+  <img src="screens/birds_found_1.png" width="550" alt="Detections Panel Overview" /><br>
+  <sub><b>Figure 6:</b> Active session dashboard displaying classification distribution charts and a rolling timeline.</sub>
 </p>
 
 <p align="center">
-  <img src="screens/birds_found_2.png" width="550" alt="Detections State 2" /><br>
-  <sub><b>Figure 7:</b> Automatic mapping and fetching of images from the local database (example for the House Sparrow species) during active data streaming.</sub>
+  <img src="screens/birds_found_2.png" width="550" alt="Species Metadata Card" /><br>
+  <sub><b>Figure 7:</b> Detailed view displaying local reference imagery matching a verified bird detection.</sub>
 </p>
 
 <p align="center">
-  <img src="screens/IMG_5700.png" width="280" alt="Mobile Dashboard View" /><br>
-  <sub><b>Figure 8:</b> Responsive view of the sidebar memory management menu and session list displayed directly on a smartphone screen.</sub>
+  <img src="screens/widok_mobilny.png" width="280" alt="Mobile UI View" /><br>
+  <sub><b>Figure 8:</b> Responsive presentation layout of the control panel optimized for mobile browser screens.</sub>
 </p>
 
 ---
 
-## 7. System Environment, Autostart, and Field Deployment
+## 7. System Environment, Autostart, and Deployment
 
-The device operates fully autonomously due to the configuration of system services and the network manager at the Linux kernel layer.
+The device functions autonomously by leveraging custom system services and network daemon configurations at the OS layer. Below is the comprehensive step-by-step installation guide.
 
-### 7.1. Network Configuration (Field Access Point)
+### 7.1. Package Repository Synchronization and Dependencies
+Synchronize your package trees, upgrade current dependencies, and install audio interfaces, media decoders, file server daemons, and formatting conversion tools:
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install libportaudio2 ffmpeg samba samba-common-bin dos2unix -y
+```
 
-Using the NetworkManager tool (`nmcli`), the `wlan0` network card is switched to AP (Access Point) mode:
+### 7.2. Permissions Cleanup and Source Normalization
+Source files authored inside Windows environments often carry carriage return line endings (CRLF), which cause interpreter faults under Linux. Normalize them (LF) and apply binary execution flags:
+```bash
+# Hand over project tree ownership to user 'user'
+sudo chown -R user:user /home/user/bird_classifier
 
+# Grant execution flags to system management shell scripts
+chmod +x /home/user/bird_classifier/run.sh
+chmod +x /home/user/bird_classifier/setup.sh
+
+# Force Unix line ending conversion
+sudo dos2unix /home/user/bird_classifier/run.sh
+sudo dos2unix /home/user/bird_classifier/setup.sh
+```
+
+### 7.3. Isolated Python Environment Configuration (venv)
+The execution backend isolates its requirements within a local python virtual container:
+```bash
+cd /home/user/bird_classifier
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 7.4. USB Microphone Hardware Discovery
+To feed the capture thread correctly, identify the card configuration identifier. Inside your virtual environment, run:
+```bash
+python3 -c "import sounddevice as sd; print(sd.query_devices())"
+```
+Take the corresponding index value or hardware string literal (e.g., "USB Audio Device") and set it inside the `run.sh` initialization argument flag: `RECORDER_ARGS="-m <device_identifier>"`.
+
+### 7.5. Power Management Interlock Configuration
+Field deployment parameters require the minicomputer network cards and processor lines to remain active without scaling down:
+```bash
+sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+```
+
+### 7.6. Network Configuration (Independent Wireless Hotspot)
+Using NetworkManager (`nmcli`), transition the local wireless interface `wlan0` to run a localized Access Point (AP). Setting the `autoconnect` property ensures the network self-heals after power disruptions:
 ```bash
 sudo nmcli device wifi hotspot ifname wlan0 ssid DrzewoBirdNET password HasloDoDrzewa
 sudo nmcli connection modify Hotspot connection.autoconnect yes
 ```
-
-This configuration forces the system to assign a static gateway IP address: `10.42.0.1`.
+The static gateway IP for the Raspberry Pi within this access point connection topology defaults to `10.42.0.1`.
 
 <p align="center">
-  <img src="screens/connected_wifi.png" width="400" alt="Established Wi-Fi Connection" /><br>
-  <sub><b>Figure 9:</b> Checking the established Wi-Fi connection with the field research subnetwork "DrzewoBirdNET".</sub>
+  <img src="screens/connected_wifi.png" width="400" alt="Wi-Fi AP Connection" /><br>
+  <sub><b>Figure 9:</b> Mobile client connecting directly to the local hotspot broadcasted by the device.</sub>
 </p>
 
-### 7.2. Windows Integration (Samba Server)
-
-To enable direct file management bypassing the web interface, the Samba daemon (`smbd`) was configured to share the user's home directory over the local network. In the `/etc/samba/smb.conf` section, the following was defined:
-
+### 7.7. Network Shares Provisioning (Samba Core)
+To allow cross-platform data extraction directly to Windows clients over local radio, append a network share block inside `/etc/samba/smb.conf`:
 ```ini
 [Raspberry]
    path = /home/user
@@ -301,20 +338,19 @@ To enable direct file management bypassing the web interface, the Samba daemon (
    directory mask = 0755
    force user = user
 ```
-
-Access to the flash storage file system from the client workstation OS is handled natively via the SMB protocol:
+Finalize the network credentials for the system account and bounce the daemon engine:
+```bash
+sudo smbpasswd -a user
+sudo systemctl restart smbd
+```
 
 <p align="center">
-  <img src="screens/samba_windows.png" width="550" alt="Samba Network Share" /><br>
-  <sub><b>Figure 10:</b> Mapping network resources and project source files directly in Windows Explorer under the gateway IP address.</sub>
+  <img src="screens/samba_windows.png" width="550" alt="Samba Network Access" /><br>
+  <sub><b>Figure 10:</b> Exploring the project data share directly inside Windows File Explorer.</sub>
 </p>
 
-### 7.3. Orchestration and Autostart (Systemd)
-
-The dedicated `birdnet.service` ensures the automatic launch of the `run.sh` script immediately after the audio and network subsystems are initialized by the system kernel, as well as an automatic restart in case of a process failure.
-
-Service configuration file (`/etc/systemd/system/birdnet.service`):
-
+### 7.8. Systemd Core Automation Daemon
+The systemd init manager monitors the health of the core `run.sh` process stack, starting it automatically upon hardware boot. Define the service tracking configuration block inside `/etc/systemd/system/birdnet.service`:
 ```ini
 [Unit]
 Description=Embedded Bird Classifier
@@ -331,88 +367,98 @@ RestartSec=10
 [Install]
 WantedBy=multi-user.target
 ```
+Commit the unit registration changes and boot the tracking engine:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable birdnet.service
+sudo systemctl start birdnet.service
+```
 
-The division into unique runtime directories for each individual recording time loop is illustrated by the process tree structure on the storage drive:
+Captured audio samples are processed, chunked, and dynamically organized inside separate session folders tracking runtime dates:
 
 <p align="center">
-  <img src="screens/logs_term.png" width="400" alt="Directory Tree Structure" /><br>
-  <sub><b>Figure 11:</b> Console output from the tree -d command demonstrating the separation of isolated directories for audio samples from individual dates.</sub>
+  <img src="screens/logs_term.png" width="400" alt="Terminal Folder Structure" /><br>
+  <sub><b>Figure 11:</b> Previewing organized session data trees using the terminal interface.</sub>
 </p>
 
 ---
 
-## 8. User Guide and Field Procedures
+## 8. User Manual and Field Procedures
 
-### Step 1: Booting and Connection
+### Step 1: Boot Sequence and Device Association
+1. Connect the power management board to the battery pack line. Allow approximately 40–60 seconds for the OS init pipeline to stabilize.
+2. Open your client hardware settings panel, search for the Wi-Fi network named **`DrzewoBirdNET`**, and authenticate using the passkey **`HasloDoDrzewa`**. Disregard alerts regarding the absence of global internet connectivity.
 
-1.  Connect the system to the power source (Xiaomi Powerbank). Wait approximately 40–60 seconds for system processes to initialize completely.
-2.  On a phone or computer, search for the Wi-Fi network named **`DrzewoBirdNET`** and log in with the password **`HasloDoDrzewa`** (in accordance with the attached `connected_wifi.png` screenshot from chapter 7.1). Ignore the system alert regarding the lack of internet access.
+### Step 2: Data Retrieval Methods (Three Options)
+- **Web Dashboard (Recommended):** Fire up a web browser client and visit `http://10.42.0.1:5173`. Select your target data logging session from the sidebar menu to populate visualization charts and preview individual audio clips.
+- **Native File Explorer (Windows):** Navigate your file browser client path directly to `\\10.42.0.1\Raspberry`. Provide your standard shell account credentials (`user`) to explore local directories.
+- **Secure Shell (SSH Terminal):** For administrative maintenance routines, connect via an SSH client: `ssh user@10.42.0.1`.
 
-### Step 2: Data Monitoring (Three Access Methods)
-
-- **Web Application (Recommended):** Open any browser (Chrome, Safari, Edge) and navigate to `http://10.42.0.1:5173`. You will access a full, responsive dashboard (according to files `screens/birds_found_1.png`, `screens/birds_found_2.png`, and the mobile view `screens/IMG_5700.jpg`). Choose the desired session from the side menu to browse statistics and listen to trimmed bird samples.
-- **Windows Explorer:** Type `\\10.42.0.1\Raspberry` into the address bar of your file manager. After providing the user credentials for `user`, you will get native access to the directory structure (view `screens/samba_windows.png`).
-- **Terminal Panel (SSH):** To perform diagnostics, connect via the SSH protocol: `ssh user@10.42.0.1`.
-
-### Step 3: Data Export and Storage Maintenance
-
-Flash memory management takes place in a dedicated control section within the sidebar menu:
+### Step 3: Data Export and Storage Management
+Data export operations are clustered in the left control column of the web application dashboard:
 
 <p align="center">
-  <img src="screens/delete_files.png" width="250" alt="Memory Administration Panel" /><br>
-  <sub><b>Figure 12:</b> Administrative tools for saving and deleting logs located in the left panel of the dashboard.</sub>
+  <img src="screens/delete_files.png" width="250" alt="UI Export Controls" /><br>
+  <sub><b>Figure 12:</b> Control layout buttons managing archive exporting and file system clearing routines.</sub>
 </p>
 
-1.  In the sidebar of the application, click the green button **"Zgraj paczkę (ZIP)"** (Export package (ZIP)).
-2.  The system will generate and download a compressed collective archive directly onto your device:
+1. Trigger the green **"Zgraj paczkę (ZIP)"** export button.
+2. The server script compresses system files and starts downloading the archive package to your device:
 
 <p align="center">
-  <img src="screens/zip_downloaded.png" width="450" alt="ZIP Archive Download" /><br>
-  <sub><b>Figure 13:</b> Browser download monitor for the archive file ZGRANE_PTAKI_SD.zip with a size of 5.3 MB via the system API.</sub>
+  <img src="screens/zip_downloaded.png" width="450" alt="Archive Package Download" /><br>
+  <sub><b>Figure 13:</b> Browser pipeline downloading the compiled runtime ZIP asset folder.</sub>
 </p>
 
-3.  The layout of the unpacked archive provides a structured division of the measurement data:
+3. Extracting the generated zip file yields a structured file hierarchy tracking application metrics and recording files:
 
 <p align="center">
-  <img src="screens/zip_unpacked.png" width="550" alt="Unpacked ZIP Directory" /><br>
-  <sub><b>Figure 14:</b> Main workspace of the exported ZIP package containing the AUDIO and JSON_LOGS directories.</sub>
+  <img src="screens/zip_unpacked.png" width="550" alt="Extracted Archive Tree" /><br>
+  <sub><b>Figure 14:</b> Internal asset layout layout previewed following archive extraction.</sub>
 </p>
 
 <p align="center">
-  <img src="screens/zip_json_logs_windows.png" width="550" alt="JSON Files List" /><br>
-  <sub><b>Figure 15:</b> All chronological JSON text session files correctly packed into the reports folder.</sub>
+  <img src="screens/zip_json_logs_windows.png" width="550" alt="JSON Metrics Layout" /><br>
+  <sub><b>Figure 15:</b> Processed JSON tracking reports generated during field analysis.</sub>
 </p>
 
 <p align="center">
-  <img src="screens/zip_audio_catalog.png" width="550" alt="Audio Session Folders" /><br>
-  <sub><b>Figure 16:</b> Audio sample directories segregated by the timestamp of their field registration.</sub>
+  <img src="screens/zip_audio_catalog.png" width="550" alt="Audio Directories Structure" /><br>
+  <sub><b>Figure 16:</b> Audio capture segments parsed into categorical directories tracking run dates.</sub>
 </p>
 
 <p align="center">
-  <img src="screens/zip_audio_files.png" width="550" alt="Trimmed Audio Samples" /><br>
-  <sub><b>Figure 17:</b> Individual audio files cut automatically by the segmentation function (log_reader.py) for specific detected birds.</sub>
+  <img src="screens/zip_audio_files.png" width="550" alt="Extracted Audio Waveforms" /><br>
+  <sub><b>Figure 17:</b> Segmented short WAV audio captures indexing isolated bird songs.</sub>
 </p>
 
-4.  After making sure that the data has been fully archived on your client device (phone/computer), press the red button **"Wyczyść Malinkę"** (Clear Raspberry). Confirm the critical data deletion operation in the dialog box:
+4. Once you verify that the download package contains the complete session data on your local machine, clear the remote environment by clicking the red **"Wyczyść Malinkę"** button and confirm the modal warning:
 
 <p align="center">
-  <img src="screens/confirm_deleting.png" width="500" alt="Deletion Confirmation Prompt" /><br>
-  <sub><b>Figure 18:</b> System JavaScript prompt protecting against accidental deletion of non-copied data in the field.</sub>
-</p>
-
-<p align="center">
-  <img src="screens/confirmation_deletion.png" width="500" alt="Successful Deletion Notification" /><br>
-  <sub><b>Figure 19:</b> Feedback indicating the successful execution of the cascading storage wipe.</sub>
-</p>
-
-5.  The SD card will be completely freed of current data, which restores the application and the file system of the minicomputer to a clean entry state:
-
-<p align="center">
-  <img src="screens/deleted_files_web.png" width="550" alt="Empty Dashboard State" /><br>
-  <sub><b>Figure 20:</b> Operational dashboard immediately after clearing the database (clean state, no available sessions).</sub>
+  <img src="screens/confirm_deleting.png" width="500" alt="Data Destruction Alert" /><br>
+  <sub><b>Figure 18:</b> Warning prompt preventing unintended storage deletion actions.</sub>
 </p>
 
 <p align="center">
-  <img src="screens/deleted_files_term.png" width="400" alt="Clean Runtime Directories" /><br>
-  <sub><b>Figure 21:</b> Terminal verification using tree -d confirming the cascade removal of dynamic session subfolders.</sub>
+  <img src="screens/confirmation_deletion.png" width="500" alt="Destruction Success Acknowledgment" /><br>
+  <sub><b>Figure 19:</b> Success confirmation layout confirming storage formatting completion.</sub>
 </p>
+
+5. Remote file spaces are systematically initialized back to a zero state, reverting the web interface to its idle mode:
+
+<p align="center">
+  <img src="screens/deleted_files_web.png" width="550" alt="Formatted UI Dashboard State" /><br>
+  <sub><b>Figure 20:</b> Interface tracking state display showing a blank layout following data cleanup.</sub>
+</p>
+
+<p align="center">
+  <img src="screens/deleted_files_term.png" width="400" alt="Terminal Directory Verification" /><br>
+  <sub><b>Figure 21:</b> Terminal directory path validation confirming empty session directories.</sub>
+</p>
+
+### 8.4. Essential SSH Maintenance Routines
+- **Poll daemon service execution metrics:** `sudo systemctl status birdnet.service`
+- **Track runtime pipeline outputs on-the-fly:** `journalctl -u birdnet.service -f`
+- **Force daemon service restart cycle:** `sudo systemctl restart birdnet.service`
+- **Initiate safe hardware power down:** `sudo shutdown -h now`
+```

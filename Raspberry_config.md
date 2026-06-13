@@ -1,3 +1,7 @@
+<p align="center">🇬🇧 <b>English:</b> <a href="README.md">Documentation</a> • <a href="Raspberry_config.md">Configuration</a> │ 🇵🇱 <b>Polski:</b> <a href="README.pl.md">Dokumentacja</a> • <a href="Raspberry_config-PL.md">Konfiguracja</a></p>
+
+---
+
 # Deployment Documentation: Embedded Bird Classifier
 
 **Platform:** Raspberry Pi 4  
@@ -9,154 +13,86 @@
 
 ## Phase 1: Operating System Preparation
 
-### 1.1. System update and dependencies installation
-
-First, update the system and install the required audio drivers, audio processing tools, file server, and text formatting repair tool:
+Execute the following commands in the Raspberry Pi terminal to install binary packages, fix permissions, and normalize text file formats:
 
 ```bash
+# 1.1. Update and install system dependencies
 sudo apt update && sudo apt upgrade -y
 sudo apt install libportaudio2 ffmpeg samba samba-common-bin dos2unix -y
-```
 
-### 1.2. Fixing file permissions and formatting
-
-Files transferred from a Windows system might contain hidden end-of-line characters (CRLF) that prevent them from running in Linux (`status=2` error). You need to fix the encoding and grant execution permissions:
-
-```bash
-# Take ownership of the files by the 'user' account
+# 1.2. Fix permissions and restore ownership of the project directory to user 'user'
 sudo chown -R user:user /home/user/bird_classifier
 
-# Grant execution rights to the scripts
+# 1.3. Grant execution permissions to startup scripts
 chmod +x /home/user/bird_classifier/run.sh
 chmod +x /home/user/bird_classifier/setup.sh
 
-# Convert formatting to UNIX standard
+# 1.4. Convert formatting to Unix standard (removing CRLF errors from Windows environment)
 sudo dos2unix /home/user/bird_classifier/run.sh
 sudo dos2unix /home/user/bird_classifier/setup.sh
 ```
 
 ---
 
-## Phase 2: Python Environment and Microphone
+## Phase 2: Python Environment and Audio Configuration
 
-### 2.1. Virtual environment (venv) configuration
-
-Create an isolated environment and install the necessary libraries (including AI models):
+Set up an isolated `venv` container with libraries and retrieve the hardware ID of your USB sound card:
 
 ```bash
+# 2.1. Configure virtual environment (venv)
 cd /home/user/bird_classifier
 python3 -m venv venv
 source venv/bin/activate
+
+# 2.2. Install Python dependencies from the requirements file
 pip install -r requirements.txt
-```
 
-### 2.2. USB Microphone identification
-
-To prevent the script from waiting for keyboard interaction, the microphone must be hardcoded. While inside the virtual environment (`venv`), run:
-
-```bash
+# 2.3. Identify the connected USB microphone
 python3 -c "import sounddevice as sd; print(sd.query_devices())"
 ```
 
-_Find your microphone on the list (e.g., "USB Audio Device") and remember its unique name segment. We will use it in the next step._
+*Find your microphone (e.g., "USB Audio Device") in the displayed list and note its name or index number.*
 
 ---
 
-## Phase 3: Startup Script (`run.sh`)
+## Phase 3: Updating Microphone Configuration
 
-Modify the main `run.sh` file so that it:
-
-1. Always runs in the correct directory (regardless of where the system calls it from).
-2. Uses the previously identified microphone (change the `RECORDER_ARGS` value).
-3. Runs a local HTTP server in the background for file downloading.
-
-Open the editor:
+Open the startup script in the Nano text editor:
 
 ```bash
 nano /home/user/bird_classifier/run.sh
 ```
 
-Paste the following complete code:
+Change the value of the `RECORDER_ARGS` variable to the identifier read in the previous step:
 
 ```bash
-#!/bin/bash
-
-# Set correct working directory
-cd "$(dirname "$0")"
-
-./setup.sh
-
-source venv/bin/activate
-
-ANALYZER="src/analyzer.py"
-RECORDER="src/recorder.py"
-# CHANGE THE NAME TO YOUR MICROPHONE FROM STEP 2.2 HERE (instead of "USB"):
-RECORDER_ARGS="-m USB"
-
-echo "Running: $ANALYZER, $RECORDER $RECORDER_ARGS..."
-
-python "$ANALYZER" &
-PID1=$!
-
-python "$RECORDER" $RECORDER_ARGS &
-PID2=$!
-
-# Start the HTTP server on port 8000 in the main project directory
-python -m http.server 8000 &
-PID_SERVER=$!
-
-echo "Press [CTRL+C] to stop the programs"
-
-function finish {
-    echo -e "\nClosing programs..."
-    kill $PID1 $PID2 $PID_SERVER 2>/dev/null
-    wait $PID1 $PID2 $PID_SERVER 2>/dev/null
-    echo "Programs closed"
-    exit 0
-}
-
-trap finish SIGINT
-
-while true; do
-    sleep 1
-done
+RECORDER_ARGS="-m <your_identified_microphone>"
 ```
 
-_Save the file: `Ctrl+O`, `Enter`, `Ctrl+X`._
+*Save the file using `Ctrl+O`, confirm with `Enter`, and exit using `Ctrl+X`.*
 
 ---
 
-## Phase 4: Services and Network Configuration ("Forest" Mode)
+## Phase 4: Network and Power Services Configuration
 
-### 4.1. Complete sleep lock (Power Management)
-
-Prevent the system and network card from entering power-saving states:
+Completely prevent system interfaces from sleeping, and configure the Hotspot and Samba.
 
 ```bash
+# 4.1. Completely disable sleep/suspend states (Power Management)
 sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
-```
 
-### 4.2. Creating a persistent Wi-Fi Hotspot
-
-The Raspberry Pi will now broadcast its own network (necessary for field communication). Setting the `autoconnect` flag guarantees the network will start upon every power-up.
-
-```bash
+# 4.2. Create a permanent Wi-Fi Hotspot
 sudo nmcli device wifi hotspot ifname wlan0 ssid DrzewoBirdNET password HasloDoDrzewa
 sudo nmcli connection modify Hotspot connection.autoconnect yes
 ```
 
 ### 4.3. Samba Server Configuration (Windows Access)
-
-Enable native file browsing through Windows Explorer.
-
-Open the configuration file:
-
+Open the Samba configuration file:
 ```bash
 sudo nano /etc/samba/smb.conf
 ```
 
-At the very bottom of the file, add:
-
+At the very bottom of the file, append the directory sharing configuration block:
 ```ini
 [Raspberry]
    path = /home/user
@@ -168,8 +104,7 @@ At the very bottom of the file, add:
    force user = user
 ```
 
-Save the file, then set a password (recommended: same as your login password) and restart the service:
-
+Zapisz plik (`Ctrl+O`, `Enter`, `Ctrl+X`), then set a network password for the user and restart the service:
 ```bash
 sudo smbpasswd -a user
 sudo systemctl restart smbd
@@ -179,16 +114,14 @@ sudo systemctl restart smbd
 
 ## Phase 5: Classifier Autostart (systemd service)
 
-Configure the automatic execution of the `run.sh` program when a powerbank is connected.
+Register the startup script as a system service running in the background immediately after the device boots.
 
-1. Create the service file:
-
+1. Create the service configuration file:
 ```bash
 sudo nano /etc/systemd/system/birdnet.service
 ```
 
-2. Paste the following code:
-
+2. Paste the complete startup daemon configuration:
 ```ini
 [Unit]
 Description=Embedded Bird Classifier
@@ -206,8 +139,7 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-3. Save the file and enable the service permanently:
-
+3. Save the changes (`Ctrl+O`, `Enter`, `Ctrl+X`), reload the configuration, and enable the service:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable birdnet.service
@@ -216,23 +148,11 @@ sudo systemctl start birdnet.service
 
 ---
 
-## Field Operation Manual
+## SSH Management and Diagnostics
 
-After placing the device in the target location and connecting the power supply, the system will boot and begin autonomous operation. Use a computer or smartphone to interact.
+Use the following commands in the terminal to monitor and control the device:
 
-**Step 1:** Connect to the Wi-Fi network: `DrzewoBirdNET` (Password: `HasloDoDrzewa`). Ignore the "no internet connection" warning.
-
-### Data Access (Choose an option):
-
-- **Via Web Browser (Quick preview and download):**
-  Open Chrome/Edge and go to: `http://10.42.0.1:8000`
-- **Via Windows Explorer (Manage and delete files):**
-  In the address bar of any folder, type: `\\10.42.0.1\Raspberry` (Log in with `user` credentials).
-- **Via SSH (Advanced control / Terminal):**
-  Open PowerShell and type: `ssh user@10.42.0.1`
-
-### Useful SSH commands:
-
-- Check application status: `sudo systemctl status birdnet.service`
-- Live monitoring (listening logs): `journalctl -u birdnet.service -f`
-- Safely power off the device: `sudo shutdown -h now`
+* **Check application status:** `sudo systemctl status birdnet.service`
+* **View live logs (listening logs):** `journalctl -u birdnet.service -f`
+* **Restart the classifier:** `sudo systemctl restart birdnet.service`
+* **Safe shutdown:** `sudo shutdown -h now`
