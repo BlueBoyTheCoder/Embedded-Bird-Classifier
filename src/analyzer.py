@@ -15,7 +15,6 @@ LAT = float(os.getenv("LATITUDE", "0.0"))
 LON = float(os.getenv("LONGITUDE", "0.0"))
 
 
-# UŻYWAJ TYLKO PEŁNYCH ŚCIEŻEK
 BASE_DIR = os.path.join(os.path.expanduser("~"), "Systemy_Wbudowane/Embedded-Bird-Classifier")
 OUTPUT_DIR = os.path.join(BASE_DIR, "running/analizing_results")
 WATCH_PATH = os.path.join(BASE_DIR, "running/new_audio_samples")
@@ -24,7 +23,7 @@ BASE_AUDIO_DIR = os.path.join(BASE_DIR, "running/saved_audio_samples")
 analyzer = Analyzer()
 now = datetime.now()
 
-# Tworzymy folder na nagrania z tej sesji
+# Creating folder for audio recordings from this session
 SESSION_WAV_DIR = os.path.join(BASE_AUDIO_DIR, now.strftime('%Y-%m-%d_%H-%M-%S'))
 os.makedirs(SESSION_WAV_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -36,7 +35,7 @@ class BirdWatchHandler(FileSystemEventHandler):
         if event.is_directory or not event.src_path.lower().endswith(".wav"):
             return
 
-        # Czekamy chwilę, żeby recorder zdążył zapisać plik do końca
+        # Waiting a moment for the recorder to finish writing the file
         time.sleep(1) 
         
         print(f"Analyzing: {event.src_path}")
@@ -47,7 +46,7 @@ class BirdWatchHandler(FileSystemEventHandler):
             if recording.detections:
                 print(f"Detected: {len(recording.detections)} birds")
                 
-                # Tworzymy plik JSON TYLKO jeśli są wykrycia i jeszcze nie istnieje
+                # Creating a JSON file ONLY if there are detections and it doesn't exist yet
                 if not os.path.exists(file_path):
                     with open(file_path, "w", encoding="utf-8") as f:
                         json.dump([], f)
@@ -70,8 +69,8 @@ class BirdWatchHandler(FileSystemEventHandler):
             print(f"Finished: {event.src_path} (Keep file)")
 
         except Exception as e:
-            print(f"Błąd analizy: {e}")
-            
+            print(f"Error analyzing: {e}")
+
 if __name__ == "__main__":
     event_handler = BirdWatchHandler()
     observer = Observer()

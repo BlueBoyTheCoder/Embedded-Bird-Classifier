@@ -86,7 +86,7 @@ def record(device_id):
 
 
 if __name__ == "__main__":
-    # Automatyczne szukanie mikrofonu USB
+    # Automaticly search for USB microphone
     device_id, device_name = find_device_id("USB")
     
     if device_id is None:

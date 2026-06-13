@@ -15,7 +15,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- LOGIKA ŚCIEŻEK ---
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.dirname(CURRENT_DIR)
 
@@ -28,8 +27,8 @@ os.makedirs(RESULTS_PATH, exist_ok=True)
 os.makedirs(AUDIO_PATH, exist_ok=True)
 os.makedirs(IMAGES_PATH, exist_ok=True)
 
-# --- ENDPOINTY API ---
 
+# API ENDPOINTS
 @app.get("/api/results")
 def list_results():
     """Zwraca listę dostępnych plików JSON z wynikami."""
@@ -44,16 +43,16 @@ def export_all_data():
     """Tworzy paczkę ZIP ze wszystkimi logami i nagraniami, po czym ją zwraca."""
     try:
         with zipfile.ZipFile(ZIP_PATH, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            # Pakujemy JSONy
+            # Packing JSON logs
             for root, _, files in os.walk(RESULTS_PATH):
                 for file in files:
                     file_path = os.path.join(root, file)
                     zipf.write(file_path, arcname=f"JSON_LOGS/{file}")
-            # Pakujemy nagrania WAV
+            # Packing audio recordings
             for root, _, files in os.walk(AUDIO_PATH):
                 for file in files:
                     file_path = os.path.join(root, file)
-                    # Zachowujemy nazwy folderów (z datą) wewnątrz paczki ZIP
+                    # Saving folder names (with dates) inside the ZIP package
                     folder_name = os.path.basename(root)
                     zipf.write(file_path, arcname=f"AUDIO/{folder_name}/{file}")
         
@@ -65,19 +64,19 @@ def export_all_data():
 def clear_sd_card():
     """Bezlitośnie kasuje wszystkie logi JSON i wycięte audio z karty SD."""
     try:
-        # Usuwamy JSONy
+        # Deliting JSON files
         for filename in os.listdir(RESULTS_PATH):
             file_path = os.path.join(RESULTS_PATH, filename)
             if os.path.isfile(file_path):
                 os.unlink(file_path)
                 
-        # Usuwamy foldery z nagraniami
+        # Deliting audio folders and files
         for item in os.listdir(AUDIO_PATH):
             item_path = os.path.join(AUDIO_PATH, item)
             if os.path.isdir(item_path):
                 shutil.rmtree(item_path)
                 
-        # Usuwamy paczkę zip jeśli istnieje
+        # Deliting the ZIP file if it exists
         if os.path.exists(ZIP_PATH):
             os.unlink(ZIP_PATH)
             
@@ -86,7 +85,7 @@ def clear_sd_card():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# --- SERWOWANIE PLIKÓW STATYCZNYCH ---
+# SERVING STATIC FILES
 app.mount("/data/results", StaticFiles(directory=RESULTS_PATH), name="results")
 app.mount("/data/audio", StaticFiles(directory=AUDIO_PATH), name="audio")
 app.mount("/data/images", StaticFiles(directory=IMAGES_PATH), name="images")

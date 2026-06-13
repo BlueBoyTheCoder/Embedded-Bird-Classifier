@@ -2,7 +2,7 @@
 
 ---
 
-# Dokumentacja: Embedded Bird Classifier
+# Embedded Bird Classifier
 
 **Autorzy projektu:** Emil Siatka, Mateusz Szwagierczak  
 **Data wydania:** Czerwiec 2026 r.  
