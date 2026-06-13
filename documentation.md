@@ -1,4 +1,4 @@
-# Dokumentacja Techniczna i Projektowa: Embedded Bird Classifier
+# Dokumentacja: Embedded Bird Classifier
 
 **Autorzy projektu:** Emil Siatka, Mateusz Szwagierczak  
 **Data wydania:** Czerwiec 2026 r.  
@@ -10,14 +10,14 @@
 
 ## 1. Wstęp i Cel Projektu
 
-Projekt **Embedded Bird Classifier** to autonomiczne urządzenie wbudowane przeznaczone do stałego nagrywania dźwięków otoczenia i automatycznego rozpoznawania gatunków ptaków. System został zaprojektowany do pracy w trudnych warunkach terenowych, bez dostępu do sieci internetowej oraz stałego zasilania z gniazdka.
+Projekt **Embedded Bird Classifier** to autonomiczne urządzenie wbudowane przeznaczone do stałego nagrywania dźwięków otoczenia i automatycznego rozpoznawania gatunków ptaków. Dźwięki rozpoznanych ptaków są zapisywane wraz z inforamcjami o czasie nagrania, rozpoznanym gatunku, i pewności klasyfikacji. System został zaprojektowany do pracy w warunkach terenowych, bez dostępu do sieci internetowej oraz stałego zasilania z gniazdka.
 
 ### Główne założenia funkcjonalne:
 
 - Cykliczne nagrywanie próbek dźwiękowych z otoczenia za pomocą podłączonego mikrofonu.
-- Przetwarzanie i klasyfikacja nagrań w czasie rzeczywistym bezpośrednio na Raspberry Pi za pomocą modelu `BirdNet`.
--  Uruchomienie własnego Hotspot's, co pozwala na pobieranie danych i podgląd wyników na smartfonie lub komputerze bez użycia internetu.
-- Zapisywanie pociętych próbek audio oraz logów w plikach JSON, z możliwością pobrania ich jako skompresowane archiwum ZIP i zdalnego czyszczenia pamięci flash.
+- Klasyfikacja ptaków na podstawie nagrań oraz przetwarzanie ich w czasie rzeczywistym bezpośrednio na Raspberry Pi za pomocą modelu `BirdNet`.
+- Zapisywanie pociętych próbek audio oraz logów w plikach JSON.
+- Uruchomienie hotspot'a w celu podglądu rezultatów na smartfonie lub komputerze bez użycia internetu lub pobrania danych do formie archiwum ZIP i .
 
 ---
 
@@ -28,14 +28,14 @@ Urządzenie ma budowę modułową opartą na łatwo dostępnych komponentach, co
 | Komponent | Model / Producent | Rola w systemie | Specyfikacja techniczna / Uwagi |
 | :--- | :--- | :--- | :--- |
 | **Jednostka centralna** | Raspberry Pi 4 Model B | Główny minikomputer, uruchamianie procesów, analiza audio, serwer API/WWW. | Broadcom BCM2711 (Quad-core Cortex-A72 @1.5GHz), 2GB RAM LPDDR4, wbudowane Wi-Fi 2.4/5.0 GHz. |
-| **Układ zasilania** | Powerbank Xiaomi | Autonomiczne źródło energii, funkcja bufora UPS. | Wspiera jednoczesne ładowanie powerbanka i zasilanie minikomputera z zewnętrznego źródła (_pass-through charging_). |
-| **Mikrofon** | Mikrofon krawatowy Esperanza | Przechwytywanie odgłosów ptaków z otoczenia. | Charakterystyka wielokierunkowa, pasmo przenoszenia dopasowane do rejestracji dźwięków natury. |
+| **Układ zasilania** | Powerbank Xiaomi | Źródło energii, funkcja bufora UPS. | Wspiera jednoczesne ładowanie powerbanka i zasilanie minikomputera z zewnętrznego źródła (_pass-through charging_). |
+| **Mikrofon** | Mikrofon krawatowy Esperanza | Przechwytywanie odgłosów ptaków z otoczenia. | Charakterystyka wielokierunkowa, pasmo dopasowane do rejestracji dźwięków natury. |
 | **Karta dźwiękowa** | Karta dźwiękowa USB LogiLink | Zamiana sygnału analogowego z mikrofonu na cyfrowy. | Działa w standardzie Plug&Play w systemie Linux, dedykowane wejście mikrofonowe TRS 3.5 mm. |
 | **Obudowa zewnętrzna** | Puszka elektroinstalacyjna S-BOX (Pawbol) | Ochrona komponentów przed deszczem i wilgocią. | Klasa szczelności IP65, wykonana z wytrzymałego polipropylenu. |
 
 ### Montaż i uszczelnienie:
 
-Komponenty wewnątrz puszki S-BOX zostały unieruchomione przy użyciu kabli zasilających oraz trytytek, co zabezpiecza je przed przemieszczaniem się w trakcie transportu. Kabel mikrofonowy wyprowadzono na zewnątrz przez fabryczny przepust kablowy. Miejsce wyprowadzenia oraz łączenia obudowy uszczelniono klejem na gorąco, chroniąc wnętrze przed wilgocią. Na zewnątrz puszki mikrofon osłonięto perforowaną maskownicą ochronną.
+Komponenty wewnątrz puszki S-BOX zostały unieruchomione przy użyciu trytytek, co zabezpiecza je przed przemieszczaniem się w trakcie transportu. Kabel mikrofonowy wyprowadzono na zewnątrz przez fabryczny przepust kablowy. Miejsce wyprowadzenia oraz łączenia obudowy uszczelniono klejem na gorąco, chroniąc wnętrze przed wilgocią. Na zewnątrz puszki mikrofon osłonięto perforowaną maskownicą ochronną.
 
 #### Zdjęcia komponentów sprzętowych:
 
@@ -58,8 +58,8 @@ System składa się z niezależnych usług systemowych oraz modułów aplikacyjn
 ### Stos Technologiczny (Tech Stack):
 
 - **System Operacyjny:** Raspberry Pi OS (64-bit). Funkcje oszczędzania energii zostały wyłączone (`systemctl mask` dla acpi/sleep), aby urządzenie nie przechodziło w stan uśpienia w terenie.
-- **Backend:** Python 3.11+ działający w środowisku wirtualnym (`venv`). Główne biblioteki: `FastAPI` (obsługa komunikacji z frontendem), `uvicorn` (serwer WWW), `birdnetlib` (obsługa modelu rozpoznawania BirdNet TensorFlow Lite), `watchdog` (automatyczne wykrywanie nowych plików audio), `sounddevice` i `scipy` (nagrywanie dźwięku i zapis do WAV), `pydub` (wycinanie fragmentów audio).
-- **Frontend:** Aplikacja typu SPA zbudowana w `React` z użyciem narzędzia `Vite`. Wygląd ostylowano za pomocą `TailwindCSS`, ikony pochodzą z pakietu `Lucide React`, a wykresy generuje biblioteka `Recharts`.
+- **Backend:** Python 3.11+ działający w środowisku wirtualnym (`venv`). Główne biblioteki: `birdnetlib` (obsługa modelu rozpoznawania BirdNet TensorFlow Lite), `watchdog` (automatyczne wykrywanie nowych plików audio), `sounddevice` i `scipy` (nagrywanie dźwięku i zapis do WAV), `pydub` (wycinanie fragmentów audio), `FastAPI` (obsługa komunikacji z frontendem), `uvicorn` (serwer WWW).
+- **Frontend:** Aplikacja zbudowana w `React` z użyciem narzędzia `Vite`. Wygląd zapewnia `TailwindCSS`, ikony pochodzą z pakietu `Lucide React`, a wykresy generuje biblioteka `Recharts`.
 
 ### Struktura Katalogów Projektu:
 
@@ -135,7 +135,7 @@ Urządzenie przetwarza dane w sposób ciągły, według poniższego schematu:
 ```
 
 1. **Nagrywanie dźwięku:** Skrypt `recorder.py` uruchamia nagrywanie z częstotliwością 48 kHz w trybie mono. Co 9 sekund zapisuje zawartość do pliku `audio_[TIMESTAMP].wav` w folderze tymczasowym `new_audio_samples`.
-2. **Wykrywanie plików:** Skrypt `analyzer.py` za pomocą modułu `watchdog` czuwa nad folderem `new_audio_samples`. Gdy pojawi się tam nowy plik `.wav`, skrypt odczekuje sekundę (aby upewnić się, że plik zapisał się w całości), a następnie przekazuje go do analizy AI.
+2. **Wykrywanie plików:** Skrypt `analyzer.py` za pomocą modułu `watchdog` czuwa nad folderem `new_audio_samples`. Gdy pojawi się tam nowy plik `.wav`, skrypt odczekuje sekundę (aby upewnić się, że plik zapisał się w całości), a następnie przekazuje go do analizy modelowi BirdNet.
 3. **Rozpoznawanie ptaków:** Biblioteka `BirdNetLib` uruchamia lokalny model TensorFlow Lite. Do analizy przekazywane są współrzędne geograficzne (domyślnie Warszawa: lat=52.2297, lon=21.0122), co pozwala odrzucić ptaki, które nie występują w naszym regionie i zwiększa dokładność rozpoznawania. Współrzędne można zmienić w pliku `.env`.
 4. **Zapis i wycinanie próbek:** Jeśli model rozpozna ptaka z odpowiednią pewnością, dane trafiają do pliku `analysis_[SESJA].json`. Jednocześnie moduł `log_reader.py` (przy użyciu `pydub`) wycina z 9-sekundowego nagrania dokładnie ten moment, w którym ptak śpiewał, i zapisuje go jako osobny mały plik `.wav`.
 
@@ -251,7 +251,7 @@ Serwer FastAPI udostępnia interfejs API dla aplikacji WWW, umożliwia pobranie 
 
 <p align="center">
   <img src="screens/birds_found_2.png" width="550" alt="Wykrycia stan 2" /><br>
-  <sub><b>Rysunek 7:</b> Wyświetlanie zdjęcia rozpoznanego gatunku z lokalnej bazy danych.</sub>
+  <sub><b>Rysunek 7:</b> Wyświetlanie zdjęcia rozpoznanego gatunku jeśli takowe jest zapisane lokalnie.</sub>
 </p>
 
 <p align="center">

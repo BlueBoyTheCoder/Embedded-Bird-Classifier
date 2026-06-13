@@ -64,11 +64,7 @@ _Znajdź na liście swój mikrofon (np. "USB Audio Device") i zapamiętaj jego u
 
 ## Faza 3: Skrypt Uruchomieniowy (`run.sh`)
 
-Zmodyfikuj główny plik `run.sh`, aby:
-
-1. Zawsze uruchamiał się w poprawnym katalogu (niezależnie od tego, skąd wywoła go system).
-2. Obsługiwał zidentyfikowany wcześniej mikrofon (zmień wartość `RECORDER_ARGS`).
-3. Uruchamiał w tle lokalny serwer WWW do pobierania plików.
+Zmodyfikuj główny plik `run.sh`, aby obsługiwał zidentyfikowany wcześniej mikrofon (zmień wartość `RECORDER_ARGS`).
 
 Otwórz edytor:
 
@@ -76,57 +72,14 @@ Otwórz edytor:
 nano /home/user/bird_classifier/run.sh
 ```
 
-Wklej poniższy, kompletny kod:
+Zmodyfikuj wartość `RECORDER_ARGS` na `-m <identyfikator_mikrofonu>`.
 
-```bash
-#!/bin/bash
-
-# Ustawienie poprawnego katalogu roboczego
-cd "$(dirname "$0")"
-
-./setup.sh
-
-source venv/bin/activate
-
-ANALYZER="src/analyzer.py"
-RECORDER="src/recorder.py"
-# TUTAJ ZMIEŃ NAZWĘ NA SWÓJ MIKROFON Z KROKU 2.2 (zamiast "USB"):
-RECORDER_ARGS="-m USB"
-
-echo "Running: $ANALYZER, $RECORDER $RECORDER_ARGS..."
-
-python "$ANALYZER" &
-PID1=$!
-
-python "$RECORDER" $RECORDER_ARGS &
-PID2=$!
-
-# Uruchomienie serwera WWW na porcie 8000 w katalogu głównym projektu
-python -m http.server 8000 &
-PID_SERVER=$!
-
-echo "Press [CTRL+C] to stop the programs"
-
-function finish {
-    echo -e "\nClosing programs..."
-    kill $PID1 $PID2 $PID_SERVER 2>/dev/null
-    wait $PID1 $PID2 $PID_SERVER 2>/dev/null
-    echo "Programs closed"
-    exit 0
-}
-
-trap finish SIGINT
-
-while true; do
-    sleep 1
-done
-```
 
 _Zapisz plik: `Ctrl+O`, `Enter`, `Ctrl+X`._
 
 ---
 
-## Faza 4: Konfiguracja Usług i Sieci (Tryb "Leśny")
+## Faza 4: Konfiguracja Usług i Sieci
 
 ### 4.1. Całkowita blokada usypiania (Zarządzanie energią)
 
