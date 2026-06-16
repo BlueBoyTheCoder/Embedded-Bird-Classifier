@@ -1,0 +1,19 @@
+Cześć! Przed wami Embedded Bird Classifier – autonomiczne urządzenie do rozpoznawania śpiewu ptaków. Sercem projektu jest Raspberry Pi 4, zamknięte w hermetycznej puszce chroniącej przed deszczem. Urządzenie zasila powerbank pełniący funkcję bufora UPS. Po podłączeniu prądu, system startuje całkowicie automatycznie. Co ważne, dorzuciliśmy sprzętowy moduł RTC, który podtrzymuje czas systemowy – dzięki temu logi mają prawidłowe daty, nawet bez połączenia z internetem. Na pełnym powerbanku system spokojnie popracuje kilka dni, a jeśli dorzucimy do niego widoczny tu panel solarny, urządzenie staje się niemal bezobsługowe.
+
+Skoro jesteśmy w lesie, nie mamy dostępu do internetu. Dlatego raspberry samo tworzy własny hotspot Wi-Fi o nazwie DrzewoBirdNET. Wystarczy połączyć się z siecią, używając ustalonego hasła, i już jesteśmy w wewnętrznej sieci urządzenia.
+
+Aby zarządzać danymi, w przeglądarce wchodzimy pod adres lokalny urządzenia. Otwiera się nasz dedykowany panel użytkownika napisany w React. To z tego miejsca możemy sterować systemem i na bieżąco przeglądać to, co zarejestrował nasz mikrofon.
+
+A jak to działa w praktyce? Sprawdźmy. Mikrofon nieustannie nagrywa dźwięk otoczenia w 9-sekundowych blokach, a lokalny model AI błyskawicznie je analizuje. Puśćmy z telefonu śpiew wróbla. Zwróćcie uwagę na ekran – aplikacja sama odpytuje serwer co 5 sekund. O, gotowe. System wyłapał dźwięk i automatycznie zaktualizował stronę. Zobaczmy jeszcze, jak poradzi sobie z odgłosami sowy.
+
+Co ważne, cały interfejs reaguje w czasie rzeczywistym. Na ekranie głównym widzimy wykres podsumowujący, ile razy dany ptak został dziś rozpoznany. Jeśli posiadamy w bazie zdjęcie danego gatunku, od razu się ono ładuje. Każde wykrycie to wycięty z dłuższego nagrania konkretny moment, w którym ptak śpiewał – możemy go od razu odsłuchać, żeby potwierdzić trafność modelu.
+
+Panel pokazuje też poziom pewności w procentach, z jakim system zidentyfikował dany gatunek. Pojedyncze pliki dźwiękowe czy logi JSON można pobrać osobno, ale zdecydowanie najwygodniej jest kliknąć przycisk "Zgraj paczkę ZIP". Wtedy serwer w ułamku sekundy pakuje dla nas całą sesję – logi, nagrania i zdjęcia – i pobieramy ją za jednym zamachem na komputer.
+
+Oczywiście plikami można zarządzać jak na zwykłym serwerze. Na ekranie widać przejrzystą strukturę folderów roboczych. Co więcej, uruchomiliśmy usługę Samba, co pozwala zamapować kartę pamięci raspberry w Eksploratorze Windows, zupełnie tak, jakby to był zwykły pendrive. Widzimy tu porządek – poszczególne dni lądują w osobnych folderach.
+
+Kiedy mamy już pewność, że zgraliśmy cały zebrany materiał na nasz dysk, możemy użyć funkcji czyszczenia. Klikamy przycisk, potwierdzamy ostrzeżenie i to wszystko. Karta SD zostaje zwolniona, system usuwa stare pomiary i jest od razu gotowy na kolejne tygodnie nasłuchiwania w lesie.
+
+Warto jeszcze dodać, że w głębokim terenie rzadko wyciągamy laptopa. Dlatego aplikacja webowa jest w pełni responsywna. Mając tylko smartfona w dłoni, łączymy się z Wi-Fi urządzenia i palcem ściągamy logi lub odsłuchujemy ptaki. Funkcjonalność zostaje zachowana w stu procentach.
+
+Podsumowując, nasz Embedded Bird Classifierto urządzenie, które zdejmuje z barków ornitologów tę najżmudniejszą część pracy. Nagrywa 24 godziny na dobę, rozpoznaje gatunki lokalnie bez udziału internetu i tworzy gotowe raporty z precyzyjnie wyciętymi nagraniami. Prosta instalacja, zasilanie z powerbanka i wygodna obsługa prosto ze smartfona to wszystko, czego potrzeba w terenie. Dziękujemy za uwagę!
